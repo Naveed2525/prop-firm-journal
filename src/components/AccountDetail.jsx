@@ -7,6 +7,7 @@ import AlertBanner from './AlertBanner';
 import ProgressBar from './ProgressBar';
 import TradeList from './TradeList';
 import AddTradeModal from './AddTradeModal';
+import Charts from './Charts';
 
 export default function AccountDetail({ accounts, onDeleteAccount }) {
   const { id } = useParams();
@@ -199,6 +200,9 @@ export default function AccountDetail({ accounts, onDeleteAccount }) {
             )}
           </div>
         )}
+
+        {/* P&L Charts */}
+        {!loading && trades.length > 0 && <Charts trades={trades} />}
 
         {/* Trade history */}
         <div>
