@@ -19,12 +19,7 @@ export default function AddAccountModal({ onSave, onClose }) {
 
   const pickFirm = (key) => {
     const f = PROP_FIRMS[key];
-    setForm((prev) => ({
-      ...prev,
-      firm: key,
-      size: f.sizes[0],
-      plan: f.plans[0]?.id ?? '',
-    }));
+    setForm((prev) => ({ ...prev, firm: key, size: f.sizes[0], plan: f.plans[0]?.id ?? '' }));
   };
 
   const handleSubmit = async (e) => {
@@ -41,17 +36,22 @@ export default function AddAccountModal({ onSave, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-end">
-      <div className="bg-gray-900 border-t border-gray-800 rounded-t-3xl w-full p-6 pb-safe overflow-y-auto max-h-[92vh]">
+    <div className="fixed inset-0 z-50 bg-black/60 dark:bg-black/75 backdrop-blur-sm flex items-end">
+      <div className="bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 rounded-t-3xl w-full p-6 pb-safe overflow-y-auto max-h-[92vh]">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-bold">Add Account</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-white w-8 h-8 flex items-center justify-center text-2xl leading-none rounded-full hover:bg-gray-800">×</button>
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white">Add Account</h2>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-700 dark:hover:text-white w-8 h-8 flex items-center justify-center text-2xl leading-none rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
+          >
+            ×
+          </button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* Firm */}
           <div>
-            <p className="text-xs text-gray-400 font-medium mb-2">Prop Firm</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mb-2">Prop Firm</p>
             <div className="grid grid-cols-2 gap-2">
               {FIRM_KEYS.map((key) => {
                 const f = PROP_FIRMS[key];
@@ -60,11 +60,16 @@ export default function AddAccountModal({ onSave, onClose }) {
                   <button
                     key={key} type="button" onClick={() => pickFirm(key)}
                     className={`rounded-xl p-3 text-sm font-semibold border-2 transition-all ${
-                      active ? 'bg-gray-800' : 'border-gray-800 bg-gray-800/50 hover:border-gray-600'
+                      active
+                        ? 'bg-gray-100 dark:bg-gray-800'
+                        : 'border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 hover:border-gray-300 dark:hover:border-gray-600'
                     }`}
                     style={{ borderColor: active ? f.color : undefined }}
                   >
-                    <span style={{ color: active ? f.color : '#9CA3AF' }}>{f.name}</span>
+                    <span style={{ color: active ? f.color : undefined }}
+                      className={active ? '' : 'text-gray-500 dark:text-gray-400'}>
+                      {f.name}
+                    </span>
                   </button>
                 );
               })}
@@ -73,7 +78,7 @@ export default function AddAccountModal({ onSave, onClose }) {
 
           {/* Size */}
           <div>
-            <p className="text-xs text-gray-400 font-medium mb-2">Account Size</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mb-2">Account Size</p>
             <div className="flex flex-wrap gap-2">
               {firm.sizes.map((s) => (
                 <Chip key={s} active={form.size === s} onClick={() => setForm((f) => ({ ...f, size: s }))}>
@@ -83,10 +88,10 @@ export default function AddAccountModal({ onSave, onClose }) {
             </div>
           </div>
 
-          {/* Plan (if multiple) */}
+          {/* Plan */}
           {firm.plans.length > 1 && (
             <div>
-              <p className="text-xs text-gray-400 font-medium mb-2">Plan</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mb-2">Plan</p>
               <div className="flex flex-wrap gap-2">
                 {firm.plans.map((p) => (
                   <Chip key={p.id} active={form.plan === p.id} onClick={() => setForm((f) => ({ ...f, plan: p.id }))}>
@@ -99,7 +104,7 @@ export default function AddAccountModal({ onSave, onClose }) {
 
           {/* Phase */}
           <div>
-            <p className="text-xs text-gray-400 font-medium mb-2">Phase</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mb-2">Phase</p>
             <div className="flex gap-2">
               {['evaluation', 'funded'].map((ph) => (
                 <Chip key={ph} active={form.phase === ph} onClick={() => setForm((f) => ({ ...f, phase: ph }))}>
@@ -109,10 +114,10 @@ export default function AddAccountModal({ onSave, onClose }) {
             </div>
           </div>
 
-          {/* Label + Start date */}
+          {/* Label + start date */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-gray-400 font-medium mb-1.5">Label (optional)</label>
+              <label className="block text-xs text-gray-500 dark:text-gray-400 font-medium mb-1.5">Label (optional)</label>
               <input
                 type="text" placeholder="e.g. Attempt 2"
                 value={form.label}
@@ -121,7 +126,7 @@ export default function AddAccountModal({ onSave, onClose }) {
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-400 font-medium mb-1.5">Start Date</label>
+              <label className="block text-xs text-gray-500 dark:text-gray-400 font-medium mb-1.5">Start Date</label>
               <input
                 type="date" value={form.startDate}
                 onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))}
@@ -132,12 +137,12 @@ export default function AddAccountModal({ onSave, onClose }) {
 
           {/* Firm notes */}
           {firm.notes && (
-            <div className="bg-gray-800/60 rounded-xl px-3 py-2.5 text-xs text-gray-400 leading-relaxed">
+            <div className="bg-gray-100 dark:bg-gray-800/60 rounded-xl px-3 py-2.5 text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
               {firm.notes}
             </div>
           )}
 
-          {err && <p className="text-red-400 text-sm">{err}</p>}
+          {err && <p className="text-red-600 dark:text-red-400 text-sm">{err}</p>}
 
           <button
             type="submit" disabled={saving || !form.size}
@@ -158,7 +163,7 @@ function Chip({ active, onClick, children }) {
       className={`rounded-xl px-4 py-2 text-sm font-semibold border transition-all ${
         active
           ? 'bg-blue-600 border-blue-500 text-white'
-          : 'border-gray-700 bg-gray-800 text-gray-300 hover:border-gray-600'
+          : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
       }`}
     >
       {children}

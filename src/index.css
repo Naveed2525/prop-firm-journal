@@ -9,24 +9,28 @@
   }
 
   body {
-    @apply bg-gray-950 text-white;
+    /* Light mode default */
+    @apply bg-gray-50 text-gray-900;
     overscroll-behavior: none;
   }
 
-  input[type='date']::-webkit-calendar-picker-indicator {
+  /* Only invert the date picker icon in dark mode */
+  .dark input[type='date']::-webkit-calendar-picker-indicator {
     filter: invert(1);
   }
 }
 
 @layer utilities {
-  .safe-top { padding-top: env(safe-area-inset-top); }
+  .safe-top    { padding-top:    env(safe-area-inset-top); }
   .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
-  .pb-safe { padding-bottom: max(1.5rem, env(safe-area-inset-bottom)); }
-  .pt-safe { padding-top: env(safe-area-inset-top); }
+  .pt-safe     { padding-top:    env(safe-area-inset-top); }
+  .pb-safe     { padding-bottom: max(1.5rem, env(safe-area-inset-bottom)); }
 }
 
 @layer components {
   .input {
-    @apply w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-3 text-white text-sm focus:outline-none focus:border-blue-500 transition-colors;
+    @apply w-full rounded-xl px-3 py-3 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500;
+    @apply bg-gray-100 border border-gray-300 text-gray-900;
+    @apply dark:bg-gray-800 dark:border-gray-700 dark:text-white;
   }
 }

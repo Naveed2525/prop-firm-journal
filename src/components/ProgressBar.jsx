@@ -17,12 +17,12 @@ export default function ProgressBar({
   return (
     <div>
       {(label || sublabel) && (
-        <div className="flex justify-between text-xs text-gray-400 mb-1">
+        <div className="flex justify-between text-xs text-gray-400 dark:text-gray-500 mb-1">
           {label   && <span>{label}</span>}
           {sublabel && <span>{sublabel}</span>}
         </div>
       )}
-      <div className={`${height} bg-gray-800 rounded-full overflow-hidden`}>
+      <div className={`${height} bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden`}>
         <div
           className={`h-full rounded-full transition-all duration-300 ${barColor}`}
           style={{ width: `${pct * 100}%` }}

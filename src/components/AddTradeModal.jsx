@@ -26,20 +26,22 @@ export default function AddTradeModal({ onSave, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-end">
-      <div className="bg-gray-900 border-t border-gray-800 rounded-t-3xl w-full p-6 pb-safe">
+    <div className="fixed inset-0 z-50 bg-black/60 dark:bg-black/75 backdrop-blur-sm flex items-end">
+      <div className="bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 rounded-t-3xl w-full p-6 pb-safe">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-bold">Log Trade Day</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-white w-8 h-8 flex items-center justify-center text-2xl leading-none rounded-full hover:bg-gray-800">×</button>
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white">Log Trade Day</h2>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-700 dark:hover:text-white w-8 h-8 flex items-center justify-center text-2xl leading-none rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
+          >
+            ×
+          </button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <Field label="Date">
-              <input
-                type="date" value={form.date} onChange={set('date')} required
-                className="input"
-              />
+              <input type="date" value={form.date} onChange={set('date')} required className="input" />
             </Field>
             <Field label="Instrument">
               <select value={form.instrument} onChange={set('instrument')} className="input">
@@ -59,13 +61,13 @@ export default function AddTradeModal({ onSave, onClose }) {
 
           <Field label="Notes (optional)">
             <textarea
-              rows={2} placeholder="Quick notes..."
+              rows={2} placeholder="Quick notes…"
               value={form.notes} onChange={set('notes')}
               className="input resize-none"
             />
           </Field>
 
-          {err && <p className="text-red-400 text-sm">{err}</p>}
+          {err && <p className="text-red-600 dark:text-red-400 text-sm">{err}</p>}
 
           <button
             type="submit" disabled={saving}
@@ -82,7 +84,7 @@ export default function AddTradeModal({ onSave, onClose }) {
 function Field({ label, children }) {
   return (
     <div>
-      <label className="block text-xs text-gray-400 mb-1.5 font-medium">{label}</label>
+      <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1.5 font-medium">{label}</label>
       {children}
     </div>
   );
