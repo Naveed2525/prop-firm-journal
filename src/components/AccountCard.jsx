@@ -1,17 +1,11 @@
-import { useState, useEffect } from 'react';
 import { PROP_FIRMS, getRules } from '../data/propFirms';
 import { computeMetrics, getAlerts } from '../utils/metrics';
+import { db } from '../lib/storage';
 import ProgressBar from './ProgressBar';
 
 export default function AccountCard({ account, onClick }) {
-  const [trades, setTrades] = useState([]);
-
-  useEffect(() => {
-    fetch(`/api/trades?accountId=${account.id}`)
-      .then((r) => r.json())
-      .then((d) => setTrades(Array.isArray(d) ? d : []))
-      .catch(() => {});
-  }, [account.id]);
+  // Dashboard remounts on every navigation, so reading synchronously is fine.
+  const trades = db.getTrades(account.id);
 
   const firm = PROP_FIRMS[account.firm];
   const rules = getRules(account.firm, account.size, account.plan);

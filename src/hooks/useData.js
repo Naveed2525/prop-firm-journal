@@ -1,82 +1,52 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
+import { db } from '../lib/storage';
 
 export function useAccounts() {
-  const [accounts, setAccounts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [accounts, setAccounts] = useState(() => db.getAccounts());
 
-  const load = useCallback(async () => {
-    try {
-      const r = await fetch('/api/accounts');
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      const data = await r.json();
-      setAccounts(Array.isArray(data) ? data : []);
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
-
-  const addAccount = async (body) => {
-    const r = await fetch('/api/accounts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    const created = await r.json();
-    setAccounts((prev) => [...prev, created]);
-    return created;
+  const addAccount = (body) => {
+    const account = {
+      id: crypto.randomUUID(),
+      ...body,
+      createdAt: new Date().toISOString(),
+    };
+    const next = [...db.getAccounts(), account];
+    db.setAccounts(next);
+    setAccounts(next);
+    return account;
   };
 
-  const deleteAccount = async (id) => {
-    const r = await fetch(`/api/accounts?id=${id}`, { method: 'DELETE' });
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  const deleteAccount = (id) => {
+    db.deleteAccount(id);
     setAccounts((prev) => prev.filter((a) => a.id !== id));
   };
 
-  return { accounts, loading, error, addAccount, deleteAccount, refresh: load };
+  return { accounts, loading: false, error: null, addAccount, deleteAccount };
 }
 
 export function useTrades(accountId) {
-  const [trades, setTrades] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [trades, setTrades] = useState(() =>
+    accountId ? db.getTrades(accountId) : []
+  );
 
-  const load = useCallback(async () => {
-    if (!accountId) return;
-    try {
-      const r = await fetch(`/api/trades?accountId=${accountId}`);
-      const data = await r.json();
-      setTrades(Array.isArray(data) ? data : []);
-    } catch {
-      // ignore
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId]);
-
-  useEffect(() => { load(); }, [load]);
-
-  const addTrade = async (body) => {
-    const r = await fetch('/api/trades', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...body, accountId }),
-    });
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    const created = await r.json();
-    setTrades((prev) => [...prev, created]);
-    return created;
+  const addTrade = (body) => {
+    const trade = {
+      id: crypto.randomUUID(),
+      accountId,
+      ...body,
+      createdAt: new Date().toISOString(),
+    };
+    const next = [...db.getTrades(accountId), trade];
+    db.setTrades(accountId, next);
+    setTrades(next);
+    return trade;
   };
 
-  const deleteTrade = async (id) => {
-    const r = await fetch(`/api/trades?id=${id}&accountId=${accountId}`, { method: 'DELETE' });
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    setTrades((prev) => prev.filter((t) => t.id !== id));
+  const deleteTrade = (id) => {
+    const next = db.getTrades(accountId).filter((t) => t.id !== id);
+    db.setTrades(accountId, next);
+    setTrades(next);
   };
 
-  return { trades, loading, addTrade, deleteTrade, refresh: load };
+  return { trades, loading: false, addTrade, deleteTrade };
 }
