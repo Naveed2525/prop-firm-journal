@@ -9,6 +9,7 @@ import TradeList from './TradeList';
 import AddTradeModal from './AddTradeModal';
 import Reports from './Reports';
 import Charts from './Charts';
+import RiskCalculator from './RiskCalculator';
 
 export default function AccountDetail({ accounts, onDeleteAccount }) {
   const { id } = useParams();
@@ -17,6 +18,7 @@ export default function AccountDetail({ accounts, onDeleteAccount }) {
   const [showAddTrade, setShowAddTrade] = useState(false);
   const [showRules, setShowRules] = useState(false);
   const [deleting, setDeleting] = useState(false);
+const [showCalculator, setShowCalculator] = useState(false);
 
   const account = accounts.find((a) => a.id === id);
   if (!account) {
@@ -246,7 +248,7 @@ export default function AccountDetail({ accounts, onDeleteAccount }) {
           style={{ boxShadow: '0 0 20px rgba(37,99,235,0.4)' }}>
           +
         </button>
-        <button onClick={() => {}}
+        <button onClick={() => setShowCalculator(true)}
           className="flex flex-col items-center gap-1 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">
           <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 11h.01M12 11h.01M15 11h.01M4 19h16a2 2 0 002-2V7a2 2 0 00-2-2H4a2 2 0 00-2 2v10a2 2 0 002 2z" />
@@ -258,6 +260,14 @@ export default function AccountDetail({ accounts, onDeleteAccount }) {
       {showAddTrade && (
         <AddTradeModal onSave={addTrade} onClose={() => setShowAddTrade(false)} />
       )}
+{showCalculator && (
+  <RiskCalculator
+    onClose={() => setShowCalculator(false)}
+    accountSize={account.size}
+    dllRemaining={rules?.hasDLL ? rules.dailyLossLimit - Math.abs(Math.min(m.todayPnL, 0)) : null}
+    maxDrawdownRemaining={rules ? rules.maxDrawdown - m.currentDrawdown : null}
+  />
+)}
     </div>
   );
 }
