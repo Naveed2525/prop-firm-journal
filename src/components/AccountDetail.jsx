@@ -49,7 +49,7 @@ export default function AccountDetail({ accounts, onDeleteAccount }) {
   const pnlColor = m.totalPnL >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white pb-28">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white pb-40">
       {/* Sticky header */}
       <div className="sticky top-0 z-10 bg-white/95 dark:bg-gray-950/95 backdrop-blur border-b border-gray-200 dark:border-gray-800 px-4 py-3">
         <div className="flex items-center gap-3">
@@ -231,14 +231,27 @@ export default function AccountDetail({ accounts, onDeleteAccount }) {
         </div>
       </div>
 
-      {/* FAB */}
-      <div className="fixed bottom-8 right-5">
-        <button
-          onClick={() => setShowAddTrade(true)}
+     {/* Bottom nav bar */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 flex items-center justify-between px-6"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)', height: 'calc(60px + env(safe-area-inset-bottom))' }}>
+        <button onClick={() => navigate('/')}
+          className="flex flex-col items-center gap-1 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">
+          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+          <span className="text-xs font-medium">Back</span>
+        </button>
+        <button onClick={() => setShowAddTrade(true)}
           className="bg-blue-600 hover:bg-blue-500 text-white rounded-full w-14 h-14 text-3xl shadow-xl transition-colors flex items-center justify-center leading-none"
-          style={{ boxShadow: '0 0 20px rgba(37,99,235,0.4)' }}
-        >
+          style={{ boxShadow: '0 0 20px rgba(37,99,235,0.4)' }}>
           +
+        </button>
+        <button onClick={() => {}}
+          className="flex flex-col items-center gap-1 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">
+          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 11h.01M12 11h.01M15 11h.01M4 19h16a2 2 0 002-2V7a2 2 0 00-2-2H4a2 2 0 00-2 2v10a2 2 0 002 2z" />
+          </svg>
+          <span className="text-xs font-medium">Calculator</span>
         </button>
       </div>
 
