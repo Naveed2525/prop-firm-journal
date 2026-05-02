@@ -1,10 +1,6 @@
-import { kv } from '@vercel/kv';
+import { getRedis, rGet, rSet, rDel } from './_redis.js';
 
 const KEY = 'pfj:accounts';
-
-function id() {
-  return crypto.randomUUID();
-}
 
 function cors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -17,25 +13,27 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
+    const redis = await getRedis();
+
     if (req.method === 'GET') {
-      const accounts = (await kv.get(KEY)) ?? [];
+      const accounts = (await rGet(redis, KEY)) ?? [];
       return res.status(200).json(accounts);
     }
 
     if (req.method === 'POST') {
-      const accounts = (await kv.get(KEY)) ?? [];
-      const account = { id: id(), ...req.body, createdAt: new Date().toISOString() };
+      const accounts = (await rGet(redis, KEY)) ?? [];
+      const account = { id: crypto.randomUUID(), ...req.body, createdAt: new Date().toISOString() };
       accounts.push(account);
-      await kv.set(KEY, accounts);
+      await rSet(redis, KEY, accounts);
       return res.status(201).json(account);
     }
 
     if (req.method === 'DELETE') {
       const { id: accountId } = req.query;
       if (!accountId) return res.status(400).json({ error: 'id required' });
-      const accounts = (await kv.get(KEY)) ?? [];
-      await kv.set(KEY, accounts.filter((a) => a.id !== accountId));
-      await kv.del(`pfj:trades:${accountId}`);
+      const accounts = (await rGet(redis, KEY)) ?? [];
+      await rSet(redis, KEY, accounts.filter((a) => a.id !== accountId));
+      await rDel(redis, `pfj:trades:${accountId}`);
       return res.status(200).json({ ok: true });
     }
 
