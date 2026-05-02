@@ -1,7 +1,6 @@
-import { db } from '../lib/storage';
 import { PROP_FIRMS } from '../data/propFirms';
 
-export function exportAllToCsv(accounts) {
+export async function exportAllToCsv(accounts) {
   const rows = [
     ['Account Label', 'Firm', 'Size ($)', 'Phase', 'Plan', 'Date', 'Instrument', 'P&L ($)', 'Notes'],
   ];
@@ -9,7 +8,8 @@ export function exportAllToCsv(accounts) {
   for (const acc of accounts) {
     const firmName = PROP_FIRMS[acc.firm]?.name ?? acc.firm;
     const label = acc.label || firmName;
-    const trades = db.getTrades(acc.id);
+    const res = await fetch(`/api/trades?accountId=${acc.id}`);
+    const trades = res.ok ? await res.json() : [];
     if (trades.length === 0) {
       rows.push([label, firmName, acc.size, acc.phase, acc.plan ?? 'standard', '', '', '', '']);
     } else {

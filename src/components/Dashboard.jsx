@@ -4,9 +4,15 @@ import AccountCard from './AccountCard';
 import AddAccountModal from './AddAccountModal';
 import { exportAllToCsv } from '../utils/exportCsv';
 
-export default function Dashboard({ accounts, onAddAccount, isDark, onToggleTheme }) {
+export default function Dashboard({ accounts, loading, onAddAccount, isDark, onToggleTheme }) {
   const [showAdd, setShowAdd] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const navigate = useNavigate();
+
+  const handleExport = async () => {
+    setExporting(true);
+    try { await exportAllToCsv(accounts); } finally { setExporting(false); }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white">
@@ -27,15 +33,21 @@ export default function Dashboard({ accounts, onAddAccount, isDark, onToggleThem
           <div className="flex items-center gap-2">
             {/* Export CSV */}
             <button
-              onClick={() => exportAllToCsv(accounts)}
+              onClick={handleExport}
               title="Export all trades to CSV"
-              disabled={accounts.length === 0}
+              disabled={accounts.length === 0 || exporting}
               className="w-9 h-9 flex items-center justify-center rounded-xl text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors disabled:opacity-30"
             >
-              {/* Download icon */}
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
+              {exporting ? (
+                <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth={2} />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                </svg>
+              ) : (
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+              )}
             </button>
 
             {/* Light / Dark toggle */}
@@ -71,7 +83,14 @@ export default function Dashboard({ accounts, onAddAccount, isDark, onToggleThem
 
       {/* Account list */}
       <div className="px-4 py-4 space-y-3 pb-safe">
-        {accounts.length === 0 ? (
+        {loading ? (
+          [0, 1].map((i) => (
+            <div key={i} className="bg-white dark:bg-gray-900 rounded-2xl p-4 border border-gray-100 dark:border-gray-800 animate-pulse">
+              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/3 mb-3" />
+              <div className="h-3 bg-gray-100 dark:bg-gray-800 rounded w-2/3" />
+            </div>
+          ))
+        ) : accounts.length === 0 ? (
           <div className="text-center py-20">
             <div className="text-6xl mb-4">📊</div>
             <p className="text-lg font-semibold text-gray-700 dark:text-gray-300">No accounts yet</p>
@@ -98,7 +117,7 @@ export default function Dashboard({ accounts, onAddAccount, isDark, onToggleThem
 
       {showAdd && (
         <AddAccountModal
-          onSave={(data) => { onAddAccount(data); setShowAdd(false); }}
+          onSave={async (data) => { await onAddAccount(data); setShowAdd(false); }}
           onClose={() => setShowAdd(false)}
         />
       )}

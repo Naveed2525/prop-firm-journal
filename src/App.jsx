@@ -5,7 +5,7 @@ import Dashboard from './components/Dashboard';
 import AccountDetail from './components/AccountDetail';
 
 export default function App() {
-  const { accounts, addAccount, deleteAccount } = useAccounts();
+  const { accounts, loading, addAccount, deleteAccount } = useAccounts();
   const { isDark, toggle } = useTheme();
 
   return (
@@ -16,6 +16,7 @@ export default function App() {
           element={
             <Dashboard
               accounts={accounts}
+              loading={loading}
               onAddAccount={addAccount}
               isDark={isDark}
               onToggleTheme={toggle}
