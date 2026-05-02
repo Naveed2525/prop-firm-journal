@@ -73,3 +73,43 @@ export function useTrades(accountId) {
 
   return { trades, loading, addTrade, deleteTrade };
 }
+
+export function usePayouts(accountId) {
+  const [payouts, setPayouts] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!accountId) { setLoading(false); return; }
+    let cancelled = false;
+    setLoading(true);
+    apiFetch(`/api/payouts?accountId=${accountId}`)
+      .then((data) => { if (!cancelled) { setPayouts(data); setLoading(false); } })
+      .catch(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [accountId]);
+
+  const addPayout = async (body) => {
+    const payout = await apiFetch('/api/payouts', {
+      method: 'POST',
+      body: JSON.stringify({ accountId, ...body }),
+    });
+    setPayouts((prev) => [...prev, payout]);
+    return payout;
+  };
+
+  const updatePayout = async (id, body) => {
+    const updated = await apiFetch(`/api/payouts?id=${id}&accountId=${accountId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    });
+    setPayouts((prev) => prev.map((p) => (p.id === id ? updated : p)));
+    return updated;
+  };
+
+  const deletePayout = async (id) => {
+    await apiFetch(`/api/payouts?id=${id}&accountId=${accountId}`, { method: 'DELETE' });
+    setPayouts((prev) => prev.filter((p) => p.id !== id));
+  };
+
+  return { payouts, loading, addPayout, updatePayout, deletePayout };
+}

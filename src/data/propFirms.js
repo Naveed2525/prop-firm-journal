@@ -5,6 +5,7 @@ export const PROP_FIRMS = {
     color: '#00D4FF',
     split: 0.90,
     drawdownType: 'trailing-eod',
+    minPayoutDays: 5,
     sizes: [50000, 100000, 150000],
     plans: [{ id: 'standard', name: 'Standard', hasDLL: true }],
     accounts: {
@@ -21,6 +22,7 @@ export const PROP_FIRMS = {
     color: '#FF6B35',
     split: 0.85,
     drawdownType: 'trailing-eod',
+    minPayoutDays: 5,
     sizes: [50000, 100000, 150000],
     plans: [
       { id: 'standard',     name: 'Standard (80%)',     split: 0.80, hasDLL: true },
@@ -40,6 +42,7 @@ export const PROP_FIRMS = {
     color: '#7B61FF',
     split: 0.90,
     drawdownType: 'trailing-eod',
+    minPayoutDays: 5,
     sizes: [25000, 50000, 100000, 150000],
     plans: [
       { id: 'select',      name: 'Select',      hasDLL: true  },
@@ -60,6 +63,7 @@ export const PROP_FIRMS = {
     color: '#22C55E',
     split: 0.90,
     drawdownType: 'trailing-eod',
+    minPayoutDays: 5,
     sizes: [25000, 50000, 100000, 150000],
     plans: [
       { id: 'standard',   name: 'Standard',  hasDLL: true  },
@@ -89,6 +93,7 @@ export function getRules(firmKey, size, planId) {
     firmColor: firm.color,
     planName: plan?.name ?? 'Standard',
     notes: firm.notes,
+    minPayoutDays: firm.minPayoutDays ?? 5,
   };
 }
 

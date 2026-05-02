@@ -34,6 +34,7 @@ export default async function handler(req, res) {
       const accounts = (await rGet(redis, KEY)) ?? [];
       await rSet(redis, KEY, accounts.filter((a) => a.id !== accountId));
       await rDel(redis, `pfj:trades:${accountId}`);
+      await rDel(redis, `pfj:payouts:${accountId}`);
       return res.status(200).json({ ok: true });
     }
 

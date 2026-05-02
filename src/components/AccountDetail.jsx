@@ -10,6 +10,7 @@ import AddTradeModal from './AddTradeModal';
 import Reports from './Reports';
 import Charts from './Charts';
 import RiskCalculator from './RiskCalculator';
+import Payouts from './Payouts';
 
 export default function AccountDetail({ accounts, onDeleteAccount }) {
   const { id } = useParams();
@@ -207,8 +208,11 @@ const [showCalculator, setShowCalculator] = useState(false);
         {/* P&L Charts */}
         {!loading && trades.length > 0 && <Charts trades={trades} />}
 
-     {/* Reports */}
+        {/* Reports */}
         {!loading && trades.length > 0 && <Reports trades={trades} />}
+
+        {/* Payouts — funded accounts only */}
+        {account.phase === 'funded' && <Payouts accountId={id} m={m} rules={rules} />}
 
         {/* Trade history */}
         <div>
