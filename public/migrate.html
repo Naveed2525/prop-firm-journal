@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Migrate Trades to Redis</title>
+<style>
+  body { font-family: sans-serif; max-width: 600px; margin: 40px auto; padding: 20px; }
+  button { padding: 12px 24px; background: #2563eb; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; margin-top: 20px; }
+  button:hover { background: #1d4ed8; }
+  button:disabled { background: #9ca3af; cursor: default; }
+  .log { margin-top: 20px; background: #f3f4f6; padding: 16px; border-radius: 8px; font-size: 13px; line-height: 1.8; white-space: pre-wrap; max-height: 400px; overflow-y: auto; }
+  .ok { color: #16a34a; }
+  .err { color: #dc2626; }
+  .done { color: #2563eb; font-weight: bold; font-size: 15px; }
+  h2 { margin-bottom: 8px; }
+  p { color: #6b7280; font-size: 14px; }
+</style>
+</head>
+<body>
+<h2>Prop Firm Journal — Trade Migration</h2>
+<p>This tool moves your saved trades from this browser to the cloud database so they sync across all your devices.</p>
+<p><strong>Make sure you are on prop-firm-journal.vercel.app before running this.</strong></p>
+<button id="btn" onclick="migrate()">Start Migration</button>
+<div class="log" id="log">Ready. Click Start Migration to begin.</div>
+
+<script>
+function log(msg, cls) {
+  const el = document.getElementById('log');
+  const line = document.createElement('div');
+  if (cls) line.className = cls;
+  line.textContent = msg;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+
+async function migrate() {
+  const btn = document.getElementById('btn');
+  btn.disabled = true;
+  document.getElementById('log').innerHTML = '';
+
+  try {
+    const accountsRaw = localStorage.getItem('pfj:accounts');
+    if (!accountsRaw) { log('No accounts found in localStorage. Nothing to migrate.', 'err'); btn.disabled = false; return; }
+    const accounts = JSON.parse(accountsRaw);
+    log(`Found ${accounts.length} account(s) to migrate...`);
+
+    for (const account of accounts) {
+      log(`\nMigrating account: ${account.firm} $${(account.size/1000).toFixed(0)}K (${account.phase})...`);
+
+      // Post account to API
+      const accRes = await fetch('/api/accounts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          firm: account.firm,
+          size: account.size,
+          plan: account.plan,
+          phase: account.phase,
+          label: account.label || '',
+          startDate: account.startDate || ''
+        })
+      });
+
+      if (!accRes.ok) {
+        const err = await accRes.text();
+        log(`  ✗ Failed to create account: ${err}`, 'err');
+        continue;
+      }
+
+      const savedAccount = await accRes.json();
+      log(`  ✓ Account created with new ID: ${savedAccount.id}`, 'ok');
+
+      // Get trades for this account
+      const tradesRaw = localStorage.getItem(`pfj:trades:${account.id}`);
+      if (!tradesRaw) { log(`  No trades found for this account.`); continue; }
+      const trades = JSON.parse(tradesRaw);
+      log(`  Found ${trades.length} trade(s)...`);
+
+      let migrated = 0;
+      for (const trade of trades) {
+        const tradeRes = await fetch('/api/trades', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            accountId: savedAccount.id,
+            date: trade.date,
+            pnl: trade.pnl,
+            instrument: trade.instrument || trade.sym || '',
+            notes: trade.notes || '',
+            setup: trade.setup || '',
+            side: trade.side || '',
+            entry: trade.entry || 0,
+            exit: trade.exit || 0,
+            qty: trade.qty || 1
+          })
+        });
+        if (tradeRes.ok) { migrated++; }
+        else { log(`  ✗ Failed to migrate trade: ${trade.date} ${trade.pnl}`, 'err'); }
+      }
+      log(`  ✓ Migrated ${migrated} / ${trades.length} trades`, 'ok');
+    }
+
+    log('\nMigration complete! Open prop-firm-journal.vercel.app to see your data.', 'done');
+    log('You can now close this page.', 'done');
+
+  } catch (err) {
+    log(`Error: ${err.message}`, 'err');
+    btn.disabled = false;
+  }
+}
+</script>
+</body>
+</html>
