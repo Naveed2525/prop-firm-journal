@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { PROP_FIRMS, getRules } from '../data/propFirms';
 import { computeMetrics, getAlerts } from '../utils/metrics';
-import { useTrades } from '../hooks/useData';
+import { useTrades, usePayouts } from '../hooks/useData';
 import AlertBanner from './AlertBanner';
 import ProgressBar from './ProgressBar';
 import TradeList from './TradeList';
@@ -16,10 +16,11 @@ export default function AccountDetail({ accounts, onDeleteAccount }) {
   const { id } = useParams();
   const navigate = useNavigate();
   const { trades, loading, addTrade, deleteTrade } = useTrades(id);
+  const { payouts, loading: payoutsLoading, addPayout, updatePayout, deletePayout } = usePayouts(id);
   const [showAddTrade, setShowAddTrade] = useState(false);
   const [showRules, setShowRules] = useState(false);
   const [deleting, setDeleting] = useState(false);
-const [showCalculator, setShowCalculator] = useState(false);
+  const [showCalculator, setShowCalculator] = useState(false);
 
   const account = accounts.find((a) => a.id === id);
   if (!account) {
@@ -35,8 +36,11 @@ const [showCalculator, setShowCalculator] = useState(false);
 
   const firm  = PROP_FIRMS[account.firm];
   const rules = getRules(account.firm, account.size, account.plan);
-  const m     = computeMetrics(trades);
+  const m     = computeMetrics(trades, payouts);
   const alerts = getAlerts(m, rules);
+
+  // Current account balance = starting size + all P&L - received payouts
+  const accountBalance = account.size + m.totalPnL - m.totalPayoutsReceived;
 
   const handleDelete = async () => {
     if (!confirm('Delete this account and all its trades? This cannot be undone.')) return;
@@ -50,6 +54,14 @@ const [showCalculator, setShowCalculator] = useState(false);
   };
 
   const pnlColor = m.totalPnL >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
+  const balanceColor = accountBalance >= account.size
+    ? 'text-gray-900 dark:text-white'
+    : 'text-red-600 dark:text-red-400';
+
+  // Profit target: show progress within current payout cycle
+  const cyclePnL = m.pnlSinceLastPayout;
+  const cycleRemaining = rules ? Math.max(rules.profitTarget - cyclePnL, 0) : 0;
+  const profitTargetLabel = m.lastPayoutDate ? 'Next Payout Target' : 'Profit Target';
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white pb-40">
@@ -93,20 +105,34 @@ const [showCalculator, setShowCalculator] = useState(false);
 
         {/* P&L hero */}
         <div className="bg-white dark:bg-gray-900 rounded-2xl p-5 shadow-sm dark:shadow-none border border-gray-100 dark:border-gray-800">
-          <div className="flex items-baseline gap-3 mb-4">
+          {/* Total P&L */}
+          <div className="flex items-baseline gap-3 mb-1">
             <span className={`text-4xl font-bold ${pnlColor}`}>
               {m.totalPnL >= 0 ? '+' : ''}${m.totalPnL.toLocaleString(undefined, { maximumFractionDigits: 0 })}
             </span>
             <span className="text-gray-400 dark:text-gray-500 text-sm">total P&L</span>
           </div>
+
+          {/* Account Balance */}
+          <div className="flex items-center gap-2 mb-4">
+            <span className={`text-xl font-bold ${balanceColor}`}>
+              ${accountBalance.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+            </span>
+            <span className="text-gray-400 dark:text-gray-500 text-xs font-medium">account balance</span>
+            {m.totalPayoutsReceived > 0 && (
+              <span className="text-xs text-gray-400 dark:text-gray-500">
+                · ${m.totalPayoutsReceived.toLocaleString(undefined, { maximumFractionDigits: 0 })} paid out
+              </span>
+            )}
+          </div>
+
+          {/* Profit Target progress — resets each payout cycle */}
           {rules && (
             <ProgressBar
-              value={Math.max(m.totalPnL, 0)} max={rules.profitTarget}
+              value={Math.max(cyclePnL, 0)} max={rules.profitTarget}
               baseColor="bg-green-500" warnAt={999} dangerAt={999}
-              label="Profit Target"
-              sublabel={`$${m.totalPnL > 0
-                ? (rules.profitTarget - m.totalPnL).toLocaleString(undefined, { maximumFractionDigits: 0 })
-                : rules.profitTarget.toLocaleString()} remaining`}
+              label={profitTargetLabel}
+              sublabel={`$${cycleRemaining.toLocaleString(undefined, { maximumFractionDigits: 0 })} remaining`}
             />
           )}
         </div>
@@ -126,7 +152,7 @@ const [showCalculator, setShowCalculator] = useState(false);
               color={m.currentDrawdown / rules.maxDrawdown >= 0.80
                 ? 'text-red-600 dark:text-red-400'
                 : 'text-gray-900 dark:text-white'}
-              sub={`Max: $${rules.maxDrawdown.toLocaleString()}`}
+              sub={`Max: $${rules.maxDrawdown.toLocaleString()}${m.lastPayoutDate ? ' (since payout)' : ''}`}
             />
             <MetricCard
               label="Consistency"
@@ -151,7 +177,7 @@ const [showCalculator, setShowCalculator] = useState(false);
           <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 space-y-4 shadow-sm dark:shadow-none">
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Risk Gauges</h3>
             <ProgressBar
-              label="Trailing Drawdown Used"
+              label={`Trailing Drawdown Used${m.lastPayoutDate ? ' (since last payout)' : ''}`}
               sublabel={`$${m.currentDrawdown.toLocaleString(undefined,{maximumFractionDigits:0})} / $${rules.maxDrawdown.toLocaleString()}`}
               value={m.currentDrawdown} max={rules.maxDrawdown} baseColor="bg-blue-500"
             />
@@ -168,9 +194,9 @@ const [showCalculator, setShowCalculator] = useState(false);
               value={m.consistencyPct} max={rules.consistencyRule} baseColor="bg-purple-500" warnAt={0.85} dangerAt={1.0}
             />
             <ProgressBar
-              label="Profit Target"
-              sublabel={`$${m.totalPnL.toLocaleString(undefined,{maximumFractionDigits:0})} / $${rules.profitTarget.toLocaleString()}`}
-              value={Math.max(m.totalPnL,0)} max={rules.profitTarget} baseColor="bg-green-500" warnAt={999} dangerAt={999}
+              label={profitTargetLabel}
+              sublabel={`$${Math.max(cyclePnL,0).toLocaleString(undefined,{maximumFractionDigits:0})} / $${rules.profitTarget.toLocaleString()}`}
+              value={Math.max(cyclePnL,0)} max={rules.profitTarget} baseColor="bg-green-500" warnAt={999} dangerAt={999}
             />
           </div>
         )}
@@ -212,7 +238,13 @@ const [showCalculator, setShowCalculator] = useState(false);
         {!loading && trades.length > 0 && <Reports trades={trades} />}
 
         {/* Payouts — funded accounts only */}
-        {account.phase === 'funded' && <Payouts accountId={id} m={m} rules={rules} />}
+        {account.phase === 'funded' && (
+          <Payouts
+            m={m} rules={rules}
+            payouts={payouts} loading={payoutsLoading}
+            addPayout={addPayout} updatePayout={updatePayout} deletePayout={deletePayout}
+          />
+        )}
 
         {/* Trade history */}
         <div>
@@ -237,7 +269,7 @@ const [showCalculator, setShowCalculator] = useState(false);
         </div>
       </div>
 
-     {/* Bottom nav bar */}
+      {/* Bottom nav bar */}
       <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 flex items-center justify-between px-6"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)', height: 'calc(60px + env(safe-area-inset-bottom))' }}>
         <button onClick={() => navigate('/')}
@@ -264,14 +296,14 @@ const [showCalculator, setShowCalculator] = useState(false);
       {showAddTrade && (
         <AddTradeModal onSave={addTrade} onClose={() => setShowAddTrade(false)} />
       )}
-{showCalculator && (
-  <RiskCalculator
-    onClose={() => setShowCalculator(false)}
-    accountSize={account.size}
-    dllRemaining={rules?.hasDLL ? rules.dailyLossLimit - Math.abs(Math.min(m.todayPnL, 0)) : null}
-    maxDrawdownRemaining={rules ? rules.maxDrawdown - m.currentDrawdown : null}
-  />
-)}
+      {showCalculator && (
+        <RiskCalculator
+          onClose={() => setShowCalculator(false)}
+          accountSize={account.size}
+          dllRemaining={rules?.hasDLL ? rules.dailyLossLimit - Math.abs(Math.min(m.todayPnL, 0)) : null}
+          maxDrawdownRemaining={rules ? rules.maxDrawdown - m.currentDrawdown : null}
+        />
+      )}
     </div>
   );
 }

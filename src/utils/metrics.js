@@ -1,10 +1,24 @@
-export function computeMetrics(trades = []) {
+export function computeMetrics(trades = [], payouts = []) {
+  // Payout-adjusted base values (needed even when no trades)
+  const receivedPayouts = payouts
+    .filter((p) => p.status === 'received')
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const totalPayoutsReceived = receivedPayouts.reduce(
+    (sum, p) => sum + (Number(p.amountReceived) || 0), 0
+  );
+  const lastPayoutDate = receivedPayouts.length > 0
+    ? receivedPayouts[receivedPayouts.length - 1].date
+    : null;
+
   if (trades.length === 0) {
     return {
       totalPnL: 0, peakPnL: 0, currentDrawdown: 0,
       todayPnL: 0, maxDayPnL: 0, minDayPnL: 0,
       consistencyPct: 0, tradeCount: 0, dayCount: 0,
       dailyPnls: {},
+      totalPayoutsReceived,
+      pnlSinceLastPayout: 0,
+      lastPayoutDate,
     };
   }
 
@@ -22,15 +36,6 @@ export function computeMetrics(trades = []) {
   const maxDayPnL = Math.max(...dailyValues, 0);
   const minDayPnL = Math.min(...dailyValues, 0);
 
-  // Trailing EOD drawdown: track running peak
-  let running = 0;
-  let peak = 0;
-  for (const pnl of dailyValues) {
-    running += pnl;
-    if (running > peak) peak = running;
-  }
-  const currentDrawdown = Math.max(peak - totalPnL, 0);
-
   // Today's P&L
   const today = new Date().toISOString().slice(0, 10);
   const todayPnL = byDay[today] ?? 0;
@@ -38,6 +43,35 @@ export function computeMetrics(trades = []) {
   // Consistency: largest profitable day as % of total profit
   const positivePnL = dailyValues.filter((v) => v > 0).reduce((s, v) => s + v, 0);
   const consistencyPct = positivePnL > 0 ? maxDayPnL / positivePnL : 0;
+
+  // Full-history peak (for peakPnL reference)
+  let running = 0;
+  let peak = 0;
+  for (const pnl of dailyValues) {
+    running += pnl;
+    if (running > peak) peak = running;
+  }
+
+  // Post-payout cycle: drawdown and P&L reset at last received payout
+  let currentDrawdown;
+  let pnlSinceLastPayout;
+
+  if (lastPayoutDate) {
+    const postDays = days.filter(([day]) => day > lastPayoutDate).map(([, v]) => v);
+    pnlSinceLastPayout = postDays.reduce((s, v) => s + v, 0);
+
+    // Trailing drawdown from post-payout high watermark
+    let run2 = 0;
+    let peak2 = 0;
+    for (const pnl of postDays) {
+      run2 += pnl;
+      if (run2 > peak2) peak2 = run2;
+    }
+    currentDrawdown = Math.max(peak2 - run2, 0);
+  } else {
+    pnlSinceLastPayout = totalPnL;
+    currentDrawdown = Math.max(peak - totalPnL, 0);
+  }
 
   return {
     totalPnL,
@@ -50,14 +84,20 @@ export function computeMetrics(trades = []) {
     tradeCount: trades.length,
     dayCount: days.length,
     dailyPnls: Object.fromEntries(days),
+    totalPayoutsReceived,
+    pnlSinceLastPayout,
+    lastPayoutDate,
   };
 }
 
 export function getAlerts(metrics, rules) {
   if (!rules) return [];
   const alerts = [];
-  const { totalPnL, currentDrawdown, todayPnL, consistencyPct } = metrics;
+  const { totalPnL, currentDrawdown, todayPnL, consistencyPct, pnlSinceLastPayout } = metrics;
   const { profitTarget, maxDrawdown, dailyLossLimit, consistencyRule, hasDLL } = rules;
+
+  // Cycle P&L for profit target tracking (resets after each received payout)
+  const cyclePnL = pnlSinceLastPayout ?? totalPnL;
 
   // --- Drawdown ---
   const ddPct = maxDrawdown > 0 ? currentDrawdown / maxDrawdown : 0;
@@ -87,13 +127,13 @@ export function getAlerts(metrics, rules) {
     });
   }
 
-  // --- Near profit target ---
-  if (totalPnL > 0) {
-    const ptPct = totalPnL / profitTarget;
+  // --- Near profit target (based on cycle P&L since last payout) ---
+  if (cyclePnL > 0) {
+    const ptPct = cyclePnL / profitTarget;
     if (ptPct >= 1) {
-      alerts.push({ level: 'success', msg: `Profit target reached! $${fmt(totalPnL)} / $${fmt(profitTarget)} — verify consistency before submitting.` });
+      alerts.push({ level: 'success', msg: `Profit target reached! $${fmt(cyclePnL)} / $${fmt(profitTarget)} — verify consistency before submitting.` });
     } else if (ptPct >= 0.9) {
-      alerts.push({ level: 'info', msg: `${pct(ptPct)} to profit target — $${fmt(profitTarget - totalPnL)} remaining.` });
+      alerts.push({ level: 'info', msg: `${pct(ptPct)} to profit target — $${fmt(profitTarget - cyclePnL)} remaining.` });
     }
   }
 

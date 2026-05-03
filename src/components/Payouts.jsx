@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { usePayouts } from '../hooks/useData';
 import PayoutModal from './PayoutModal';
 
 const MIN_PAYOUT_AMOUNT = 100;
@@ -33,14 +32,16 @@ function CheckRow({ passed, label, detail }) {
   );
 }
 
-export default function Payouts({ accountId, m, rules }) {
-  const { payouts, loading, addPayout, updatePayout, deletePayout } = usePayouts(accountId);
+export default function Payouts({ m, rules, payouts, loading, addPayout, updatePayout, deletePayout }) {
   const [showModal, setShowModal] = useState(false);
+
+  // Use P&L since last payout for cycle-based checks
+  const cyclePnL = m.pnlSinceLastPayout ?? m.totalPnL;
 
   const minDays = rules?.minPayoutDays ?? 5;
   const daysOk = m.dayCount >= minDays;
   const consistencyOk = m.totalPnL <= 0 || m.consistencyPct <= (rules?.consistencyRule ?? 0.40);
-  const profitOk = m.totalPnL >= MIN_PAYOUT_AMOUNT;
+  const profitOk = cyclePnL >= MIN_PAYOUT_AMOUNT;
   const allEligible = daysOk && consistencyOk && profitOk;
 
   const totalReceived = payouts.reduce((sum, p) =>
@@ -92,7 +93,9 @@ export default function Payouts({ accountId, m, rules }) {
           <CheckRow
             passed={profitOk}
             label={`Profit threshold ($${MIN_PAYOUT_AMOUNT} min)`}
-            detail={`Current P&L: ${fmtUSD(m.totalPnL)}`}
+            detail={m.lastPayoutDate
+              ? `Since last payout: ${fmtUSD(cyclePnL)}`
+              : `Current P&L: ${fmtUSD(m.totalPnL)}`}
           />
         </div>
 
