@@ -4,7 +4,7 @@ const KEY = 'pfj:accounts';
 
 function cors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,DELETE,OPTIONS');
+ res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,DELETE,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 }
 
@@ -37,7 +37,16 @@ export default async function handler(req, res) {
       await rDel(redis, `pfj:payouts:${accountId}`);
       return res.status(200).json({ ok: true });
     }
-
+if (req.method === 'PATCH') {
+  const { id: accountId } = req.query;
+  if (!accountId) return res.status(400).json({ error: 'id required' });
+  const accounts = (await rGet(redis, KEY)) ?? [];
+  const idx = accounts.findIndex((a) => a.id === accountId);
+  if (idx === -1) return res.status(404).json({ error: 'Account not found' });
+  accounts[idx] = { ...accounts[idx], ...req.body, updatedAt: new Date().toISOString() };
+  await rSet(redis, KEY, accounts);
+  return res.status(200).json(accounts[idx]);
+}
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (err) {
     console.error('[accounts]', err);

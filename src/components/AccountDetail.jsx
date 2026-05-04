@@ -11,6 +11,7 @@ import Reports from './Reports';
 import Charts from './Charts';
 import RiskCalculator from './RiskCalculator';
 import Payouts from './Payouts';
+import EditAccountModal from './EditAccountModal';
 
 export default function AccountDetail({ accounts, onDeleteAccount }) {
   const { id } = useParams();
@@ -21,6 +22,7 @@ export default function AccountDetail({ accounts, onDeleteAccount }) {
   const [showRules, setShowRules] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showCalculator, setShowCalculator] = useState(false);
+const [showEdit, setShowEdit] = useState(false);
 
   const account = accounts.find((a) => a.id === id);
   if (!account) {
@@ -99,7 +101,7 @@ export default function AccountDetail({ accounts, onDeleteAccount }) {
               : 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400'
           }`}>
             {account.phase === 'funded' ? 'Funded' : 'Eval'}
-          </span>
+          </span><button onClick={() => setShowEdit(true)} className="text-xs px-2 py-1 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300">Edit</button>
         </div>
       </div>
 
@@ -309,6 +311,16 @@ export default function AccountDetail({ accounts, onDeleteAccount }) {
 
       {showAddTrade && (
         <AddTradeModal onSave={addTrade} onClose={() => setShowAddTrade(false)} />
+      )}
+{showEdit && (
+        <EditAccountModal
+          account={account}
+          onSave={async (updates) => {
+            const res = await fetch('/api/accounts?id=' + account.id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updates) });
+            if (res.ok) window.location.reload();
+          }}
+          onClose={() => setShowEdit(false)}
+        />
       )}
       {showCalculator && (
         <RiskCalculator
