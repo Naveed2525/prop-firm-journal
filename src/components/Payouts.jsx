@@ -40,7 +40,8 @@ export default function Payouts({ m, rules, payouts, loading, addPayout, updateP
 
   const minDays = rules?.minPayoutDays ?? 5;
   const daysOk = m.dayCount >= minDays;
-  const consistencyOk = m.totalPnL <= 0 || m.consistencyPct <= (rules?.consistencyRule ?? 0.40);
+  // null = consistency rule disabled for this account, so always passes
+  const consistencyOk = rules?.consistencyRule == null || m.totalPnL <= 0 || m.consistencyPct <= rules.consistencyRule;
   const profitOk = cyclePnL >= MIN_PAYOUT_AMOUNT;
   const allEligible = daysOk && consistencyOk && profitOk;
 

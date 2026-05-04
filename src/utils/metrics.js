@@ -120,7 +120,7 @@ export function getAlerts(metrics, rules) {
   }
 
   // --- Consistency ---
-  if (totalPnL > 0 && consistencyPct > consistencyRule) {
+  if (consistencyRule != null && totalPnL > 0 && consistencyPct > consistencyRule) {
     alerts.push({
       level: 'warning',
       msg: `Consistency violation: best day = ${pct(consistencyPct)} of profits (limit ${pct(consistencyRule)}). Keep trading to dilute.`,

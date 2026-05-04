@@ -1,7 +1,15 @@
 import { useState } from 'react';
-import { PROP_FIRMS } from '../data/propFirms';
+import { PROP_FIRMS, getRules } from '../data/propFirms';
 
 const FIRM_KEYS = Object.keys(PROP_FIRMS);
+const CONSISTENCY_OPTIONS = [
+  { key: 'default', label: 'Firm Default' },
+  { key: 'none',    label: 'None' },
+  { key: '35',      label: '35%' },
+  { key: '40',      label: '40%' },
+  { key: '50',      label: '50%' },
+  { key: 'custom',  label: 'Custom' },
+];
 
 export default function AddAccountModal({ onSave, onClose }) {
   const [form, setForm] = useState({
@@ -11,23 +19,55 @@ export default function AddAccountModal({ onSave, onClose }) {
     phase: 'evaluation',
     label: '',
     startDate: new Date().toISOString().slice(0, 10),
+    consistencyKey: 'default',
+    consistencyCustom: '',
   });
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
 
   const firm = PROP_FIRMS[form.firm];
+  const firmRules = getRules(form.firm, Number(form.size), form.plan);
+  const firmDefaultPct = firmRules ? (firmRules.consistencyRule * 100).toFixed(0) : '40';
 
   const pickFirm = (key) => {
     const f = PROP_FIRMS[key];
-    setForm((prev) => ({ ...prev, firm: key, size: f.sizes[0], plan: f.plans[0]?.id ?? '' }));
+    setForm((prev) => ({
+      ...prev,
+      firm: key,
+      size: f.sizes[0],
+      plan: f.plans[0]?.id ?? '',
+      consistencyKey: 'default',
+      consistencyCustom: '',
+    }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErr('');
+
+    // Validate custom value
+    if (form.consistencyKey === 'custom') {
+      const v = parseFloat(form.consistencyCustom);
+      if (isNaN(v) || v <= 0 || v > 100) {
+        setErr('Enter a custom consistency % between 1 and 100.');
+        return;
+      }
+    }
+
     setSaving(true);
     try {
-      await onSave({ ...form, size: Number(form.size) });
+      // Resolve consistencyOverride to null | 0 | decimal
+      let consistencyOverride = null;
+      if (form.consistencyKey === 'none') {
+        consistencyOverride = 0;
+      } else if (form.consistencyKey === 'custom') {
+        consistencyOverride = parseFloat(form.consistencyCustom) / 100;
+      } else if (form.consistencyKey !== 'default') {
+        consistencyOverride = parseFloat(form.consistencyKey) / 100;
+      }
+
+      const { consistencyKey, consistencyCustom, ...rest } = form;
+      await onSave({ ...rest, size: Number(rest.size), consistencyOverride });
       onClose();
     } catch (ex) {
       setErr(ex.message);
@@ -112,6 +152,40 @@ export default function AddAccountModal({ onSave, onClose }) {
                 </Chip>
               ))}
             </div>
+          </div>
+
+          {/* Consistency Rule Override */}
+          <div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mb-2">
+              Consistency Rule
+              <span className="font-normal ml-1 text-gray-400 dark:text-gray-500">
+                (firm default: {firmDefaultPct}%)
+              </span>
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {CONSISTENCY_OPTIONS.map(({ key, label }) => (
+                <Chip
+                  key={key}
+                  active={form.consistencyKey === key}
+                  onClick={() => setForm((f) => ({ ...f, consistencyKey: key }))}
+                >
+                  {label}
+                </Chip>
+              ))}
+            </div>
+            {form.consistencyKey === 'custom' && (
+              <div className="flex items-center gap-2 mt-3">
+                <input
+                  type="number"
+                  placeholder="e.g. 45"
+                  value={form.consistencyCustom}
+                  onChange={(e) => setForm((f) => ({ ...f, consistencyCustom: e.target.value }))}
+                  min="1" max="100" step="1"
+                  className="input w-24 text-center"
+                />
+                <span className="text-sm text-gray-500 dark:text-gray-400">%</span>
+              </div>
+            )}
           </div>
 
           {/* Label + start date */}

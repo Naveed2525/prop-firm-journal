@@ -14,22 +14,23 @@ export default function Dashboard({ accounts, loading, onAddAccount, isDark, onT
     try { await exportAllToCsv(accounts); } finally { setExporting(false); }
   };
 
+  const evalAccounts   = accounts.filter((a) => a.phase !== 'funded');
+  const fundedAccounts = accounts.filter((a) => a.phase === 'funded');
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-white/95 dark:bg-gray-950/95 backdrop-blur border-b border-gray-200 dark:border-gray-800 px-4 pt-safe">
         <div className="flex items-center justify-between py-3">
-          {/* Title */}
           <div>
             <h1 className="text-xl font-bold tracking-tight">Futures Journal</h1>
             <p className="text-xs text-gray-400 dark:text-gray-500">
               {accounts.length === 0
                 ? 'No accounts'
-                : `${accounts.length} account${accounts.length !== 1 ? 's' : ''}`}
+                : `${evalAccounts.length} eval · ${fundedAccounts.length} funded`}
             </p>
           </div>
 
-          {/* Right-side controls */}
           <div className="flex items-center gap-2">
             {/* Export CSV */}
             <button
@@ -57,13 +58,11 @@ export default function Dashboard({ accounts, loading, onAddAccount, isDark, onT
               className="w-9 h-9 flex items-center justify-center rounded-xl text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
             >
               {isDark ? (
-                /* Sun icon — shown in dark mode to switch to light */
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <circle cx="12" cy="12" r="5" />
                   <path strokeLinecap="round" d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
                 </svg>
               ) : (
-                /* Moon icon — shown in light mode to switch to dark */
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
                 </svg>
@@ -105,13 +104,27 @@ export default function Dashboard({ accounts, loading, onAddAccount, isDark, onT
             </button>
           </div>
         ) : (
-          accounts.map((acc) => (
-            <AccountCard
-              key={acc.id}
-              account={acc}
-              onClick={() => navigate(`/account/${acc.id}`)}
-            />
-          ))
+          <>
+            {/* Evaluation section */}
+            <SectionLabel title="Evaluation" count={evalAccounts.length} />
+            {evalAccounts.length === 0 ? (
+              <EmptySection msg="No evaluation accounts yet" />
+            ) : (
+              evalAccounts.map((acc) => (
+                <AccountCard key={acc.id} account={acc} onClick={() => navigate(`/account/${acc.id}`)} />
+              ))
+            )}
+
+            {/* Funded section */}
+            <SectionLabel title="Funded" count={fundedAccounts.length} className="pt-3" />
+            {fundedAccounts.length === 0 ? (
+              <EmptySection msg="No funded accounts yet" />
+            ) : (
+              fundedAccounts.map((acc) => (
+                <AccountCard key={acc.id} account={acc} onClick={() => navigate(`/account/${acc.id}`)} />
+              ))
+            )}
+          </>
         )}
       </div>
 
@@ -121,6 +134,25 @@ export default function Dashboard({ accounts, loading, onAddAccount, isDark, onT
           onClose={() => setShowAdd(false)}
         />
       )}
+    </div>
+  );
+}
+
+function SectionLabel({ title, count, className = '' }) {
+  return (
+    <div className={`flex items-center gap-2 pb-1 ${className}`}>
+      <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+        {title}
+      </p>
+      <span className="text-xs text-gray-300 dark:text-gray-600 font-medium">{count}</span>
+    </div>
+  );
+}
+
+function EmptySection({ msg }) {
+  return (
+    <div className="border border-dashed border-gray-200 dark:border-gray-700 rounded-2xl px-4 py-5 text-center">
+      <p className="text-sm text-gray-400 dark:text-gray-500">{msg}</p>
     </div>
   );
 }

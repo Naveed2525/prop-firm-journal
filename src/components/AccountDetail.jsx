@@ -36,8 +36,10 @@ export default function AccountDetail({ accounts, onDeleteAccount }) {
 
   const firm  = PROP_FIRMS[account.firm];
   const rules = getRules(account.firm, account.size, account.plan);
+  // Apply per-account consistency override (null = firm default, 0 = disabled, >0 = custom %)
+  const effectiveRules = applyConsistencyOverride(rules, account.consistencyOverride);
   const m     = computeMetrics(trades, payouts);
-  const alerts = getAlerts(m, rules);
+  const alerts = getAlerts(m, effectiveRules);
 
   // Current account balance = starting size + all P&L - received payouts
   const accountBalance = account.size + m.totalPnL - m.totalPayoutsReceived;
@@ -53,6 +55,8 @@ export default function AccountDetail({ accounts, onDeleteAccount }) {
     }
   };
 
+  const consistencyEnabled = effectiveRules?.consistencyRule != null;
+
   const pnlColor = m.totalPnL >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
   const balanceColor = accountBalance >= account.size
     ? 'text-gray-900 dark:text-white'
@@ -60,7 +64,7 @@ export default function AccountDetail({ accounts, onDeleteAccount }) {
 
   // Profit target: show progress within current payout cycle
   const cyclePnL = m.pnlSinceLastPayout;
-  const cycleRemaining = rules ? Math.max(rules.profitTarget - cyclePnL, 0) : 0;
+  const cycleRemaining = effectiveRules ? Math.max(effectiveRules.profitTarget - cyclePnL, 0) : 0;
   const profitTargetLabel = m.lastPayoutDate ? 'Next Payout Target' : 'Profit Target';
 
   return (
@@ -86,7 +90,7 @@ export default function AccountDetail({ accounts, onDeleteAccount }) {
               )}
             </div>
             <p className="text-xs text-gray-400 dark:text-gray-500 capitalize">
-              {account.phase} · {rules?.planName} · {rules ? `${(rules.split * 100).toFixed(0)}% split` : ''}
+              {account.phase} · {effectiveRules?.planName} · {effectiveRules ? `${(effectiveRules.split * 100).toFixed(0)}% split` : ''}
             </p>
           </div>
           <span className={`text-xs px-2 py-1 rounded-full font-medium ${
@@ -127,9 +131,9 @@ export default function AccountDetail({ accounts, onDeleteAccount }) {
           </div>
 
           {/* Profit Target progress — resets each payout cycle */}
-          {rules && (
+          {effectiveRules && (
             <ProgressBar
-              value={Math.max(cyclePnL, 0)} max={rules.profitTarget}
+              value={Math.max(cyclePnL, 0)} max={effectiveRules.profitTarget}
               baseColor="bg-green-500" warnAt={999} dangerAt={999}
               label={profitTargetLabel}
               sublabel={`$${cycleRemaining.toLocaleString(undefined, { maximumFractionDigits: 0 })} remaining`}
@@ -138,30 +142,34 @@ export default function AccountDetail({ accounts, onDeleteAccount }) {
         </div>
 
         {/* Metric grid */}
-        {rules && (
+        {effectiveRules && (
           <div className="grid grid-cols-2 gap-3">
             <MetricCard
               label="Today's P&L"
               value={fmtPnl(m.todayPnL)}
               color={m.todayPnL >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}
-              sub={rules.hasDLL ? `DLL: $${rules.dailyLossLimit.toLocaleString()}` : 'No DLL'}
+              sub={effectiveRules.hasDLL ? `DLL: $${effectiveRules.dailyLossLimit.toLocaleString()}` : 'No DLL'}
             />
             <MetricCard
               label="Trailing Drawdown"
               value={`$${m.currentDrawdown.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
-              color={m.currentDrawdown / rules.maxDrawdown >= 0.80
+              color={m.currentDrawdown / effectiveRules.maxDrawdown >= 0.80
                 ? 'text-red-600 dark:text-red-400'
                 : 'text-gray-900 dark:text-white'}
-              sub={`Max: $${rules.maxDrawdown.toLocaleString()}${m.lastPayoutDate ? ' (since payout)' : ''}`}
+              sub={`Max: $${effectiveRules.maxDrawdown.toLocaleString()}${m.lastPayoutDate ? ' (since payout)' : ''}`}
             />
             <MetricCard
               label="Consistency"
               value={`${(m.consistencyPct * 100).toFixed(0)}%`}
-              color={m.consistencyPct > rules.consistencyRule
+              color={consistencyEnabled && m.consistencyPct > effectiveRules.consistencyRule
                 ? 'text-red-600 dark:text-red-400'
-                : 'text-green-600 dark:text-green-400'}
-              sub={`Limit: ${(rules.consistencyRule * 100).toFixed(0)}%${
-                account.firm === 'lucid' && account.phase === 'funded' ? ' (eval only)' : ''}`}
+                : consistencyEnabled
+                ? 'text-green-600 dark:text-green-400'
+                : 'text-gray-900 dark:text-white'}
+              sub={consistencyEnabled
+                ? `Limit: ${(effectiveRules.consistencyRule * 100).toFixed(0)}%${
+                    account.firm === 'lucid' && account.phase === 'funded' ? ' (eval only)' : ''}`
+                : 'No rule'}
             />
             <MetricCard
               label="Best Day"
@@ -173,36 +181,38 @@ export default function AccountDetail({ accounts, onDeleteAccount }) {
         )}
 
         {/* Risk gauges */}
-        {rules && (
+        {effectiveRules && (
           <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 space-y-4 shadow-sm dark:shadow-none">
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Risk Gauges</h3>
             <ProgressBar
               label={`Trailing Drawdown Used${m.lastPayoutDate ? ' (since last payout)' : ''}`}
-              sublabel={`$${m.currentDrawdown.toLocaleString(undefined,{maximumFractionDigits:0})} / $${rules.maxDrawdown.toLocaleString()}`}
-              value={m.currentDrawdown} max={rules.maxDrawdown} baseColor="bg-blue-500"
+              sublabel={`$${m.currentDrawdown.toLocaleString(undefined,{maximumFractionDigits:0})} / $${effectiveRules.maxDrawdown.toLocaleString()}`}
+              value={m.currentDrawdown} max={effectiveRules.maxDrawdown} baseColor="bg-blue-500"
             />
-            {rules.hasDLL && (
+            {effectiveRules.hasDLL && (
               <ProgressBar
                 label="Daily Loss Limit (today)"
-                sublabel={`$${Math.abs(Math.min(m.todayPnL,0)).toLocaleString(undefined,{maximumFractionDigits:0})} / $${rules.dailyLossLimit.toLocaleString()}`}
-                value={Math.abs(Math.min(m.todayPnL,0))} max={rules.dailyLossLimit} baseColor="bg-amber-500"
+                sublabel={`$${Math.abs(Math.min(m.todayPnL,0)).toLocaleString(undefined,{maximumFractionDigits:0})} / $${effectiveRules.dailyLossLimit.toLocaleString()}`}
+                value={Math.abs(Math.min(m.todayPnL,0))} max={effectiveRules.dailyLossLimit} baseColor="bg-amber-500"
+              />
+            )}
+            {consistencyEnabled && (
+              <ProgressBar
+                label="Consistency (best day / total profit)"
+                sublabel={`${(m.consistencyPct*100).toFixed(0)}% / ${(effectiveRules.consistencyRule*100).toFixed(0)}% max`}
+                value={m.consistencyPct} max={effectiveRules.consistencyRule} baseColor="bg-purple-500" warnAt={0.85} dangerAt={1.0}
               />
             )}
             <ProgressBar
-              label="Consistency (best day / total profit)"
-              sublabel={`${(m.consistencyPct*100).toFixed(0)}% / ${(rules.consistencyRule*100).toFixed(0)}% max`}
-              value={m.consistencyPct} max={rules.consistencyRule} baseColor="bg-purple-500" warnAt={0.85} dangerAt={1.0}
-            />
-            <ProgressBar
               label={profitTargetLabel}
-              sublabel={`$${Math.max(cyclePnL,0).toLocaleString(undefined,{maximumFractionDigits:0})} / $${rules.profitTarget.toLocaleString()}`}
-              value={Math.max(cyclePnL,0)} max={rules.profitTarget} baseColor="bg-green-500" warnAt={999} dangerAt={999}
+              sublabel={`$${Math.max(cyclePnL,0).toLocaleString(undefined,{maximumFractionDigits:0})} / $${effectiveRules.profitTarget.toLocaleString()}`}
+              value={Math.max(cyclePnL,0)} max={effectiveRules.profitTarget} baseColor="bg-green-500" warnAt={999} dangerAt={999}
             />
           </div>
         )}
 
         {/* Rules accordion */}
-        {rules && (
+        {effectiveRules && (
           <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl overflow-hidden shadow-sm dark:shadow-none">
             <button
               className="w-full flex items-center justify-between px-4 py-4 text-left"
@@ -215,15 +225,19 @@ export default function AccountDetail({ accounts, onDeleteAccount }) {
             </button>
             {showRules && (
               <div className="px-4 pb-4 grid grid-cols-2 gap-2">
-                <RuleCell label="Profit Target"    value={`$${rules.profitTarget.toLocaleString()}`} />
-                <RuleCell label="Max Drawdown"     value={`$${rules.maxDrawdown.toLocaleString()}`} />
-                <RuleCell label="Daily Loss Limit" value={rules.hasDLL ? `$${rules.dailyLossLimit.toLocaleString()}` : 'None ✓'} />
-                <RuleCell label="Consistency Rule" value={`${(rules.consistencyRule * 100).toFixed(0)}% max/day`} />
-                <RuleCell label="Profit Split"     value={`${(rules.split * 100).toFixed(0)}% trader`} />
+                <RuleCell label="Profit Target"    value={`$${effectiveRules.profitTarget.toLocaleString()}`} />
+                <RuleCell label="Max Drawdown"     value={`$${effectiveRules.maxDrawdown.toLocaleString()}`} />
+                <RuleCell label="Daily Loss Limit" value={effectiveRules.hasDLL ? `$${effectiveRules.dailyLossLimit.toLocaleString()}` : 'None ✓'} />
+                <RuleCell label="Consistency Rule" value={
+                  consistencyEnabled
+                    ? `${(effectiveRules.consistencyRule * 100).toFixed(0)}% max/day`
+                    : 'None (disabled)'
+                } />
+                <RuleCell label="Profit Split"     value={`${(effectiveRules.split * 100).toFixed(0)}% trader`} />
                 <RuleCell label="Drawdown Type"    value="EOD Trailing" />
-                {rules.notes && (
+                {effectiveRules.notes && (
                   <div className="col-span-2 text-xs text-gray-400 dark:text-gray-400 bg-gray-100 dark:bg-gray-800/60 rounded-xl px-3 py-2 leading-relaxed">
-                    {rules.notes}
+                    {effectiveRules.notes}
                   </div>
                 )}
               </div>
@@ -240,7 +254,7 @@ export default function AccountDetail({ accounts, onDeleteAccount }) {
         {/* Payouts — funded accounts only */}
         {account.phase === 'funded' && (
           <Payouts
-            m={m} rules={rules}
+            m={m} rules={effectiveRules}
             payouts={payouts} loading={payoutsLoading}
             addPayout={addPayout} updatePayout={updatePayout} deletePayout={deletePayout}
           />
@@ -300,12 +314,17 @@ export default function AccountDetail({ accounts, onDeleteAccount }) {
         <RiskCalculator
           onClose={() => setShowCalculator(false)}
           accountSize={account.size}
-          dllRemaining={rules?.hasDLL ? rules.dailyLossLimit - Math.abs(Math.min(m.todayPnL, 0)) : null}
-          maxDrawdownRemaining={rules ? rules.maxDrawdown - m.currentDrawdown : null}
+          dllRemaining={effectiveRules?.hasDLL ? effectiveRules.dailyLossLimit - Math.abs(Math.min(m.todayPnL, 0)) : null}
+          maxDrawdownRemaining={effectiveRules ? effectiveRules.maxDrawdown - m.currentDrawdown : null}
         />
       )}
     </div>
   );
+}
+
+function applyConsistencyOverride(rules, override) {
+  if (!rules || override == null) return rules;
+  return { ...rules, consistencyRule: override === 0 ? null : override };
 }
 
 function fmtPnl(n) {

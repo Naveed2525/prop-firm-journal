@@ -3,14 +3,19 @@ import { computeMetrics, getAlerts } from '../utils/metrics';
 import { db } from '../lib/storage';
 import ProgressBar from './ProgressBar';
 
+function applyConsistencyOverride(rules, override) {
+  if (!rules || override == null) return rules;
+  return { ...rules, consistencyRule: override === 0 ? null : override };
+}
+
 export default function AccountCard({ account, onClick }) {
-  // Dashboard remounts on every navigation, so reading synchronously is fine.
   const trades = db.getTrades(account.id);
 
-  const firm = PROP_FIRMS[account.firm];
+  const firm  = PROP_FIRMS[account.firm];
   const rules = getRules(account.firm, account.size, account.plan);
+  const effectiveRules = applyConsistencyOverride(rules, account.consistencyOverride);
   const m = computeMetrics(trades);
-  const alerts = getAlerts(m, rules);
+  const alerts = getAlerts(m, effectiveRules);
 
   const hasDanger  = alerts.some((a) => a.level === 'danger');
   const hasWarning = alerts.some((a) => a.level === 'warning');
@@ -18,7 +23,8 @@ export default function AccountCard({ account, onClick }) {
 
   const statusDot = hasDanger ? 'bg-red-500' : hasWarning ? 'bg-amber-500' : hasSuccess ? 'bg-green-400' : 'bg-gray-400 dark:bg-gray-600';
   const pnlColor  = m.totalPnL >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
-  const ddPct     = rules ? m.currentDrawdown / rules.maxDrawdown : 0;
+  const ddPct     = effectiveRules ? m.currentDrawdown / effectiveRules.maxDrawdown : 0;
+  const consistencyEnabled = effectiveRules?.consistencyRule != null;
 
   return (
     <button
@@ -39,7 +45,7 @@ export default function AccountCard({ account, onClick }) {
             )}
           </div>
           <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 capitalize">
-            {account.phase} · {rules?.planName ?? 'Standard'} · {(rules?.split * 100).toFixed(0)}% split
+            {account.phase} · {effectiveRules?.planName ?? 'Standard'} · {(effectiveRules?.split * 100).toFixed(0)}% split
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -59,22 +65,22 @@ export default function AccountCard({ account, onClick }) {
         <span className={`text-2xl font-bold ${pnlColor}`}>
           {m.totalPnL >= 0 ? '+' : ''}${m.totalPnL.toLocaleString(undefined, { maximumFractionDigits: 0 })}
         </span>
-        {rules && (
+        {effectiveRules && (
           <span className="text-gray-400 dark:text-gray-500 text-sm">
-            / ${rules.profitTarget.toLocaleString()} target
+            / ${effectiveRules.profitTarget.toLocaleString()} target
           </span>
         )}
       </div>
-      {rules && (
+      {effectiveRules && (
         <ProgressBar
-          value={Math.max(m.totalPnL, 0)} max={rules.profitTarget}
+          value={Math.max(m.totalPnL, 0)} max={effectiveRules.profitTarget}
           baseColor="bg-green-500" warnAt={999} dangerAt={999}
           height="h-1.5"
         />
       )}
 
       {/* Metrics row */}
-      {rules && (
+      {effectiveRules && (
         <div className="grid grid-cols-3 gap-2 mt-3">
           <MiniMetric
             label="Drawdown"
@@ -85,19 +91,30 @@ export default function AccountCard({ account, onClick }) {
             label="Today"
             value={`${m.todayPnL >= 0 ? '+' : ''}$${Math.abs(m.todayPnL).toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
             color={m.todayPnL >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}
-            pct={rules.hasDLL && m.todayPnL < 0 ? Math.abs(m.todayPnL) / rules.dailyLossLimit : 0}
+            pct={effectiveRules.hasDLL && m.todayPnL < 0 ? Math.abs(m.todayPnL) / effectiveRules.dailyLossLimit : 0}
             warn={0.75} danger={0.90}
           />
-          <MiniMetric
-            label="Consistency"
-            value={`${(m.consistencyPct * 100).toFixed(0)}%`}
-            sub={`/ ${(rules.consistencyRule * 100).toFixed(0)}%`}
-            color={m.consistencyPct > rules.consistencyRule
-              ? 'text-red-600 dark:text-red-400'
-              : 'text-gray-700 dark:text-gray-200'}
-            pct={m.consistencyPct / rules.consistencyRule}
-            warn={0.85} danger={1.0}
-          />
+          {consistencyEnabled ? (
+            <MiniMetric
+              label="Consistency"
+              value={`${(m.consistencyPct * 100).toFixed(0)}%`}
+              sub={`/ ${(effectiveRules.consistencyRule * 100).toFixed(0)}%`}
+              color={m.consistencyPct > effectiveRules.consistencyRule
+                ? 'text-red-600 dark:text-red-400'
+                : 'text-gray-700 dark:text-gray-200'}
+              pct={m.consistencyPct / effectiveRules.consistencyRule}
+              warn={0.85} danger={1.0}
+            />
+          ) : (
+            <MiniMetric
+              label="Consistency"
+              value={`${(m.consistencyPct * 100).toFixed(0)}%`}
+              sub="no rule"
+              color="text-gray-700 dark:text-gray-200"
+              pct={0}
+              warn={0.85} danger={1.0}
+            />
+          )}
         </div>
       )}
 
