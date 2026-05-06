@@ -26,10 +26,16 @@ export default function AccountCard({ account, onClick }) {
   const ddPct     = effectiveRules ? m.currentDrawdown / effectiveRules.maxDrawdown : 0;
   const consistencyEnabled = effectiveRules?.consistencyRule != null;
 
+  const isBlown = account.blown === true;
+
   return (
     <button
       onClick={onClick}
-      className="w-full text-left bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 border border-gray-200 dark:border-gray-800 rounded-2xl p-4 transition-colors active:opacity-80 shadow-sm dark:shadow-none"
+      className={`w-full text-left rounded-2xl p-4 transition-colors active:opacity-80 ${
+        isBlown
+          ? 'bg-gray-100 dark:bg-gray-800/60 border border-gray-300 dark:border-gray-700 opacity-70'
+          : 'bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 border border-gray-200 dark:border-gray-800 shadow-sm dark:shadow-none'
+      }`}
     >
       {/* Header row */}
       <div className="flex items-start justify-between mb-3">
@@ -49,14 +55,20 @@ export default function AccountCard({ account, onClick }) {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${statusDot}`} />
-          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-            account.phase === 'funded'
-              ? 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400'
-              : 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400'
-          }`}>
-            {account.phase === 'funded' ? 'Funded' : 'Eval'}
-          </span>
+          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${isBlown ? 'bg-red-500' : statusDot}`} />
+          {isBlown ? (
+            <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400">
+              Blown
+            </span>
+          ) : (
+            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+              account.phase === 'funded'
+                ? 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400'
+                : 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400'
+            }`}>
+              {account.phase === 'funded' ? 'Funded' : 'Eval'}
+            </span>
+          )}
         </div>
       </div>
 

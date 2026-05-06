@@ -13,7 +13,7 @@ import RiskCalculator from './RiskCalculator';
 import Payouts from './Payouts';
 import EditAccountModal from './EditAccountModal';
 
-export default function AccountDetail({ accounts, onDeleteAccount }) {
+export default function AccountDetail({ accounts, onDeleteAccount, onUpdateAccount }) {
   const { id } = useParams();
   const navigate = useNavigate();
   const { trades, loading, addTrade, deleteTrade } = useTrades(id);
@@ -45,6 +45,17 @@ const [showEdit, setShowEdit] = useState(false);
 
   // Current account balance = starting size + all P&L - received payouts
   const accountBalance = account.size + m.totalPnL - m.totalPayoutsReceived;
+
+  const isBlownByDrawdown = effectiveRules && m.currentDrawdown >= effectiveRules.maxDrawdown;
+  const shouldSuggestBlown = isBlownByDrawdown && !account.blown;
+
+  const handleMarkBlown = async () => {
+    await onUpdateAccount(id, { blown: true });
+  };
+
+  const handleUnmarkBlown = async () => {
+    await onUpdateAccount(id, { blown: false });
+  };
 
   const handleDelete = async () => {
     if (!confirm('Delete this account and all its trades? This cannot be undone.')) return;
@@ -96,16 +107,50 @@ const [showEdit, setShowEdit] = useState(false);
             </p>
           </div>
           <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-            account.phase === 'funded'
+            account.blown
+              ? 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400'
+              : account.phase === 'funded'
               ? 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400'
               : 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400'
           }`}>
-            {account.phase === 'funded' ? 'Funded' : 'Eval'}
+            {account.blown ? 'Blown' : account.phase === 'funded' ? 'Funded' : 'Eval'}
           </span><button onClick={() => setShowEdit(true)} className="text-xs px-2 py-1 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300">Edit</button>
         </div>
       </div>
 
       <div className="px-4 py-4 space-y-4">
+        {/* Blown status banner */}
+        {account.blown && (
+          <div className="rounded-xl border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-950/70 px-4 py-3 flex items-start justify-between gap-3">
+            <div className="flex items-start gap-2.5 text-sm text-red-700 dark:text-red-300">
+              <span className="flex-shrink-0 mt-0.5">💀</span>
+              <span className="font-semibold">This account is marked as blown.</span>
+            </div>
+            <button
+              onClick={handleUnmarkBlown}
+              className="flex-shrink-0 text-xs text-red-600 dark:text-red-400 underline hover:no-underline"
+            >
+              Unmark
+            </button>
+          </div>
+        )}
+
+        {/* Suggest marking blown when drawdown is maxed */}
+        {shouldSuggestBlown && (
+          <div className="rounded-xl border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-950/70 px-4 py-3 flex items-start justify-between gap-3">
+            <div className="flex items-start gap-2.5 text-sm text-red-700 dark:text-red-300">
+              <span className="flex-shrink-0 mt-0.5">🚨</span>
+              <span>Max drawdown breached — mark this account as blown?</span>
+            </div>
+            <button
+              onClick={handleMarkBlown}
+              className="flex-shrink-0 text-xs font-semibold bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-lg transition-colors"
+            >
+              Mark Blown
+            </button>
+          </div>
+        )}
+
         {/* Alerts */}
         {alerts.map((a, i) => <AlertBanner key={i} level={a.level} msg={a.msg} />)}
 
@@ -316,8 +361,8 @@ const [showEdit, setShowEdit] = useState(false);
         <EditAccountModal
           account={account}
           onSave={async (updates) => {
-            const res = await fetch('/api/accounts?id=' + account.id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updates) });
-            if (res.ok) window.location.reload();
+            await onUpdateAccount(account.id, updates);
+            setShowEdit(false);
           }}
           onClose={() => setShowEdit(false)}
         />

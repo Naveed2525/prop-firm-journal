@@ -35,12 +35,21 @@ export function useAccounts() {
     return account;
   };
 
+  const updateAccount = async (id, body) => {
+    const updated = await apiFetch(`/api/accounts?id=${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    });
+    setAccounts((prev) => prev.map((a) => (a.id === id ? updated : a)));
+    return updated;
+  };
+
   const deleteAccount = async (id) => {
     await apiFetch(`/api/accounts?id=${id}`, { method: 'DELETE' });
     setAccounts((prev) => prev.filter((a) => a.id !== id));
   };
 
-  return { accounts, loading, error, addAccount, deleteAccount };
+  return { accounts, loading, error, addAccount, updateAccount, deleteAccount };
 }
 
 export function useTrades(accountId) {

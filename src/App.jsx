@@ -5,7 +5,7 @@ import Dashboard from './components/Dashboard';
 import AccountDetail from './components/AccountDetail';
 
 export default function App() {
-  const { accounts, loading, addAccount, deleteAccount } = useAccounts();
+  const { accounts, loading, addAccount, updateAccount, deleteAccount } = useAccounts();
   const { isDark, toggle } = useTheme();
 
   return (
@@ -25,7 +25,7 @@ export default function App() {
         />
         <Route
           path="/account/:id"
-          element={<AccountDetail accounts={accounts} onDeleteAccount={deleteAccount} />}
+          element={<AccountDetail accounts={accounts} onDeleteAccount={deleteAccount} onUpdateAccount={updateAccount} />}
         />
       </Routes>
     </BrowserRouter>

@@ -26,6 +26,7 @@ export default function EditAccountModal({ account, onSave, onClose }) {
     if (["0.35", "0.40", "0.50"].includes(val)) return "";
     return String(Math.round(account.consistencyOverride * 100));
   });
+  const [blown, setBlown] = useState(account.blown ?? false);
   const [saving, setSaving] = useState(false);
 
   const firm = PROP_FIRMS[account.firm];
@@ -46,6 +47,7 @@ export default function EditAccountModal({ account, onSave, onClose }) {
       label,
       startDate,
       consistencyOverride,
+      blown,
     });
     setSaving(false);
     onClose();
@@ -134,6 +136,21 @@ export default function EditAccountModal({ account, onSave, onClose }) {
 
         {/* Start Date */}
         {inp("Start Date", startDate, setStartDate, "date")}
+
+        {/* Mark as Blown toggle */}
+        <div style={{ marginBottom: 20, padding: "12px 14px", borderRadius: 10, border: blown ? "1px solid #fca5a5" : "1px solid var(--border, #e5e7eb)", background: blown ? "#fef2f2" : "var(--surface2, #f9fafb)" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }} onClick={() => setBlown(b => !b)}>
+            <div>
+              <p style={{ fontSize: 13, fontWeight: 700, color: blown ? "#dc2626" : "var(--text, #111)", margin: 0 }}>Mark as Blown</p>
+              <p style={{ fontSize: 11, color: blown ? "#ef4444" : "var(--text2, #6b7280)", margin: "2px 0 0" }}>
+                {blown ? "Account is marked blown — hidden from dashboard" : "Max drawdown breached, account no longer active"}
+              </p>
+            </div>
+            <div style={{ width: 44, height: 24, borderRadius: 12, background: blown ? "#dc2626" : "#d1d5db", position: "relative", flexShrink: 0, transition: "background 0.2s" }}>
+              <div style={{ position: "absolute", top: 2, left: blown ? 22 : 2, width: 20, height: 20, borderRadius: "50%", background: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,0.2)", transition: "left 0.2s" }} />
+            </div>
+          </div>
+        </div>
 
         {/* Save */}
         <button
