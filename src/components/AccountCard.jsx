@@ -1,6 +1,6 @@
 import { PROP_FIRMS, getRules } from '../data/propFirms';
 import { computeMetrics, getAlerts } from '../utils/metrics';
-import { db } from '../lib/storage';
+import { useTrades } from '../hooks/useData';
 import ProgressBar from './ProgressBar';
 
 function applyConsistencyOverride(rules, override) {
@@ -9,7 +9,7 @@ function applyConsistencyOverride(rules, override) {
 }
 
 export default function AccountCard({ account, onClick }) {
-  const trades = db.getTrades(account.id);
+  const { trades, loading } = useTrades(account.id);
 
   const firm  = PROP_FIRMS[account.firm];
   const rules = getRules(account.firm, account.size, account.plan);
@@ -27,6 +27,45 @@ export default function AccountCard({ account, onClick }) {
   const consistencyEnabled = effectiveRules?.consistencyRule != null;
 
   const isBlown = account.blown === true;
+
+  if (loading) {
+    return (
+      <button
+        onClick={onClick}
+        className={`w-full text-left rounded-2xl p-4 ${
+          isBlown
+            ? 'bg-gray-100 dark:bg-gray-800/60 border border-gray-300 dark:border-gray-700 opacity-70'
+            : 'bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-sm dark:shadow-none'
+        }`}
+      >
+        <div className="flex items-start justify-between mb-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-sm" style={{ color: firm?.color }}>{firm?.name}</span>
+              <span className="text-gray-300 dark:text-gray-500 text-sm">·</span>
+              <span className="text-gray-700 dark:text-gray-200 text-sm font-medium">
+                ${(account.size / 1000).toFixed(0)}K
+              </span>
+              {account.label && (
+                <span className="text-gray-400 dark:text-gray-500 text-xs">({account.label})</span>
+              )}
+            </div>
+            <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 capitalize">
+              {account.phase} · {effectiveRules?.planName ?? 'Standard'} · {(effectiveRules?.split * 100).toFixed(0)}% split
+            </p>
+          </div>
+          <div className="w-16 h-5 bg-gray-200 dark:bg-gray-700 rounded-full animate-pulse" />
+        </div>
+        <div className="h-8 w-32 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse mb-2" />
+        <div className="h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full animate-pulse mb-3" />
+        <div className="grid grid-cols-3 gap-2">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="h-10 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse" />
+          ))}
+        </div>
+      </button>
+    );
+  }
 
   return (
     <button
