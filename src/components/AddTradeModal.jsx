@@ -23,7 +23,7 @@ function resizeImage(file, maxPx, quality) {
 
 export default function AddTradeModal({ onSave, onClose }) {
   const today = new Date().toISOString().slice(0, 10);
-  const [form, setForm] = useState({ date: today, pnl: '', instrument: 'ES', notes: '', tradeName: '', stopLoss: '', entry: '', exit: '' });
+  const [form, setForm] = useState({ date: today, pnl: '', instrument: 'ES', notes: '', tradeName: '', stopLoss: '', entry: '', exit: '', entryTime: '', exitTime: ''});
   const [images, setImages] = useState([]);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
@@ -50,9 +50,11 @@ export default function AddTradeModal({ onSave, onClose }) {
     const stopLossNum = form.stopLoss !== '' ? parseFloat(form.stopLoss) : null;
     const entryNum = form.entry !== '' ? parseFloat(form.entry) : null;
     const exitNum = form.exit !== '' ? parseFloat(form.exit) : null;
+    const entryTime = form.entryTime || null;
+    const exitTime = form.exitTime || null;
     setSaving(true);
     try {
-      await onSave({ ...form, pnl: pnlNum, stopLoss: stopLossNum, entry: entryNum, exit: exitNum, images });
+      await onSave({ ...form, pnl: pnlNum, stopLoss: stopLossNum, entry: entryNum, exit: exitNum, entryTime, exitTime, images });
       onClose();
     } catch (ex) {
       setErr(ex.message);
@@ -75,7 +77,17 @@ export default function AddTradeModal({ onSave, onClose }) {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Date">
+            <Field label="Date"><div className="grid grid-cols-2 gap-3">
+            <Field label="Entry Time">
+              <input type="time" value={form.entryTime} onChange={set('entryTime')} className="input" />
+            </Field>
+            <Field label="Exit Time">
+              <input type="time" value={form.exitTime} onChange={set('exitTime')} className="input" />
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Entry Price">
               <input type="date" value={form.date} onChange={set('date')} required className="input" />
             </Field>
             <Field label="Instrument">
