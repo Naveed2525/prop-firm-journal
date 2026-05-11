@@ -23,7 +23,18 @@ function resizeImage(file, maxPx, quality) {
 
 export default function AddTradeModal({ onSave, onClose }) {
   const today = new Date().toISOString().slice(0, 10);
-  const [form, setForm] = useState({ date: today, pnl: '', instrument: 'ES', notes: '', tradeName: '', stopLoss: '', entry: '', exit: '', entryTime: '', exitTime: ''});
+  const [form, setForm] = useState({
+    date: today,
+    instrument: 'ES',
+    tradeName: '',
+    entryTime: '',
+    exitTime: '',
+    entry: '',
+    exit: '',
+    pnl: '',
+    stopLoss: '',
+    notes: '',
+  });
   const [images, setImages] = useState([]);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
@@ -54,7 +65,16 @@ export default function AddTradeModal({ onSave, onClose }) {
     const exitTime = form.exitTime || null;
     setSaving(true);
     try {
-      await onSave({ ...form, pnl: pnlNum, stopLoss: stopLossNum, entry: entryNum, exit: exitNum, entryTime, exitTime, images });
+      await onSave({
+        ...form,
+        pnl: pnlNum,
+        stopLoss: stopLossNum,
+        entry: entryNum,
+        exit: exitNum,
+        entryTime,
+        exitTime,
+        images,
+      });
       onClose();
     } catch (ex) {
       setErr(ex.message);
@@ -64,7 +84,7 @@ export default function AddTradeModal({ onSave, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 dark:bg-black/75 backdrop-blur-sm flex items-end">
-      <div className="bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 rounded-t-3xl w-full p-6 pb-safe">
+      <div className="bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 rounded-t-3xl w-full p-6 pb-safe overflow-y-auto max-h-screen">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-bold text-gray-900 dark:text-white">Log Trade Day</h2>
           <button
@@ -76,6 +96,8 @@ export default function AddTradeModal({ onSave, onClose }) {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+
+          {/* Date + Instrument */}
           <div className="grid grid-cols-2 gap-3">
             <Field label="Date">
               <input type="date" value={form.date} onChange={set('date')} required className="input" />
@@ -87,6 +109,18 @@ export default function AddTradeModal({ onSave, onClose }) {
             </Field>
           </div>
 
+          {/* Trade Name */}
+          <Field label="Trade Name (optional)">
+            <input
+              type="text"
+              placeholder='e.g. "Morning Breakout" or "Trade 1"'
+              value={form.tradeName}
+              onChange={set('tradeName')}
+              className="input"
+            />
+          </Field>
+
+          {/* Entry Time + Exit Time */}
           <div className="grid grid-cols-2 gap-3">
             <Field label="Entry Time">
               <input type="time" value={form.entryTime} onChange={set('entryTime')} className="input" />
@@ -96,52 +130,43 @@ export default function AddTradeModal({ onSave, onClose }) {
             </Field>
           </div>
 
-          <Field label="Trade Name (optional)">
-            <input
-              type="text" placeholder='e.g. "Morning Breakout" or "Trade 1"'
-              value={form.tradeName} onChange={set('tradeName')}
-              className="input"
-            />
-          </Field>
-
+          {/* Entry Price + Exit Price */}
           <div className="grid grid-cols-2 gap-3">
             <Field label="Entry Price">
               <input
                 type="number" step="0.01" placeholder="e.g. 5240.50"
                 value={form.entry} onChange={set('entry')}
-                className="input"
-                inputMode="decimal"
+                className="input" inputMode="decimal"
               />
             </Field>
             <Field label="Exit Price">
               <input
                 type="number" step="0.01" placeholder="e.g. 5247.25"
                 value={form.exit} onChange={set('exit')}
-                className="input"
-                inputMode="decimal"
+                className="input" inputMode="decimal"
               />
             </Field>
           </div>
 
+          {/* Day P&L + Risk/Stop */}
           <div className="grid grid-cols-2 gap-3">
             <Field label="Day P&L ($)">
               <input
                 type="number" step="0.01" placeholder="e.g. 350 or -125"
                 value={form.pnl} onChange={set('pnl')} required
-                className="input text-xl font-semibold"
-                inputMode="decimal"
+                className="input text-xl font-semibold" inputMode="decimal"
               />
             </Field>
             <Field label="Risk / Stop ($)">
               <input
                 type="number" step="0.01" placeholder="e.g. 200"
                 value={form.stopLoss} onChange={set('stopLoss')}
-                className="input text-xl font-semibold"
-                inputMode="decimal"
+                className="input text-xl font-semibold" inputMode="decimal"
               />
             </Field>
           </div>
 
+          {/* Notes */}
           <Field label="Notes (optional)">
             <textarea
               rows={2} placeholder="Quick notes…"
