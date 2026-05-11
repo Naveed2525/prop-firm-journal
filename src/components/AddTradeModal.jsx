@@ -77,23 +77,22 @@ export default function AddTradeModal({ onSave, onClose }) {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Date"><div className="grid grid-cols-2 gap-3">
-            <Field label="Entry Time">
-              <input type="time" value={form.entryTime} onChange={set('entryTime')} className="input" />
-            </Field>
-            <Field label="Exit Time">
-              <input type="time" value={form.exitTime} onChange={set('exitTime')} className="input" />
-            </Field>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Entry Price">
+            <Field label="Date">
               <input type="date" value={form.date} onChange={set('date')} required className="input" />
             </Field>
             <Field label="Instrument">
               <select value={form.instrument} onChange={set('instrument')} className="input">
                 {INSTRUMENTS.map((i) => <option key={i}>{i}</option>)}
               </select>
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Entry Time">
+              <input type="time" value={form.entryTime} onChange={set('entryTime')} className="input" />
+            </Field>
+            <Field label="Exit Time">
+              <input type="time" value={form.exitTime} onChange={set('exitTime')} className="input" />
             </Field>
           </div>
 
