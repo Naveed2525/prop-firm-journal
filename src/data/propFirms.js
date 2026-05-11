@@ -100,3 +100,19 @@ export function getRules(firmKey, size, planId) {
 export function getFirmColor(firmKey) {
   return PROP_FIRMS[firmKey]?.color ?? '#888';
 }
+
+const PLAN_CODES = {
+  standard: 'STD',
+  accelerated: 'ACC',
+  select: 'SEL',
+  'select-flex': 'SFX',
+  'lucid-flex': 'LFX',
+};
+
+export function getAccountCode(account) {
+  const firm = PROP_FIRMS[account?.firm];
+  const shortName = firm?.shortName ?? (account?.firm ?? '').toUpperCase().slice(0, 3);
+  const planCode = PLAN_CODES[account?.plan] ?? (account?.plan ?? '').replace(/-/g, '').toUpperCase().slice(0, 3) || 'STD';
+  const sizeK = (account?.size ?? 0) >= 1000 ? `${account.size / 1000}K` : String(account?.size ?? '');
+  return `${shortName}${planCode}${sizeK}`;
+}

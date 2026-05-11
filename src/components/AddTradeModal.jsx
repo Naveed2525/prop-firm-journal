@@ -23,7 +23,7 @@ function resizeImage(file, maxPx, quality) {
 
 export default function AddTradeModal({ onSave, onClose }) {
   const today = new Date().toISOString().slice(0, 10);
-  const [form, setForm] = useState({ date: today, pnl: '', instrument: 'ES', notes: '' });
+  const [form, setForm] = useState({ date: today, pnl: '', instrument: 'ES', notes: '', tradeName: '', stopLoss: '' });
   const [images, setImages] = useState([]);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
@@ -47,9 +47,10 @@ export default function AddTradeModal({ onSave, onClose }) {
     setErr('');
     const pnlNum = parseFloat(form.pnl);
     if (isNaN(pnlNum)) { setErr('Enter a valid P&L number.'); return; }
+    const stopLossNum = form.stopLoss !== '' ? parseFloat(form.stopLoss) : null;
     setSaving(true);
     try {
-      await onSave({ ...form, pnl: pnlNum, images });
+      await onSave({ ...form, pnl: pnlNum, stopLoss: stopLossNum, images });
       onClose();
     } catch (ex) {
       setErr(ex.message);
@@ -82,14 +83,32 @@ export default function AddTradeModal({ onSave, onClose }) {
             </Field>
           </div>
 
-          <Field label="Day P&L ($)">
+          <Field label="Trade Name (optional)">
             <input
-              type="number" step="0.01" placeholder="e.g. 350 or -125"
-              value={form.pnl} onChange={set('pnl')} required
-              className="input text-xl font-semibold"
-              inputMode="decimal"
+              type="text" placeholder='e.g. "Morning Breakout" or "Trade 1"'
+              value={form.tradeName} onChange={set('tradeName')}
+              className="input"
             />
           </Field>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Day P&L ($)">
+              <input
+                type="number" step="0.01" placeholder="e.g. 350 or -125"
+                value={form.pnl} onChange={set('pnl')} required
+                className="input text-xl font-semibold"
+                inputMode="decimal"
+              />
+            </Field>
+            <Field label="Risk / Stop ($)">
+              <input
+                type="number" step="0.01" placeholder="e.g. 200"
+                value={form.stopLoss} onChange={set('stopLoss')}
+                className="input text-xl font-semibold"
+                inputMode="decimal"
+              />
+            </Field>
+          </div>
 
           <Field label="Notes (optional)">
             <textarea

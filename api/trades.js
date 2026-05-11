@@ -26,7 +26,8 @@ export default async function handler(req, res) {
       const { accountId, ...rest } = req.body;
       if (!accountId) return res.status(400).json({ error: 'accountId required' });
       const trades = (await rGet(redis, key(accountId))) ?? [];
-      const trade = { id: crypto.randomUUID(), accountId, ...rest, createdAt: new Date().toISOString() };
+      const tradeNumber = trades.length > 0 ? Math.max(...trades.map((t) => t.tradeNumber ?? 0)) + 1 : 1;
+      const trade = { id: crypto.randomUUID(), accountId, ...rest, tradeNumber, createdAt: new Date().toISOString() };
       trades.push(trade);
       await rSet(redis, key(accountId), trades);
       return res.status(201).json(trade);

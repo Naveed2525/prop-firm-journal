@@ -314,7 +314,7 @@ const [showEdit, setShowEdit] = useState(false);
           </h3>
           {loading
             ? <div className="text-center py-10 text-gray-400 dark:text-gray-500">Loading…</div>
-            : <TradeList trades={trades} onDelete={deleteTrade} />
+            : <TradeList trades={trades} onDelete={deleteTrade} account={account} />
           }
         </div>
 

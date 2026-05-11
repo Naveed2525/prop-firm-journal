@@ -1,6 +1,18 @@
 import { useEffect, useState } from 'react';
+import { PROP_FIRMS, getAccountCode } from '../data/propFirms';
 
-export default function TradeList({ trades = [], onDelete }) {
+function getOutcome(pnl) {
+  if (pnl > 0) return 'Win';
+  if (pnl < 0) return 'Loss';
+  return 'Breakeven';
+}
+
+function getRValue(pnl, stopLoss) {
+  if (stopLoss == null || stopLoss === '' || Number(stopLoss) === 0) return null;
+  return pnl / Math.abs(Number(stopLoss));
+}
+
+export default function TradeList({ trades = [], onDelete, account }) {
   const sorted = [...trades].sort((a, b) => b.date.localeCompare(a.date));
 
   if (sorted.length === 0) {
@@ -15,38 +27,92 @@ export default function TradeList({ trades = [], onDelete }) {
 
   return (
     <div className="space-y-2">
-      {sorted.map((t) => <TradeRow key={t.id} trade={t} onDelete={onDelete} />)}
+      {sorted.map((t) => <TradeRow key={t.id} trade={t} onDelete={onDelete} account={account} />)}
     </div>
   );
 }
 
-function TradeRow({ trade, onDelete }) {
+function TradeRow({ trade, onDelete, account }) {
   const [confirming, setConfirming] = useState(false);
   const [lightboxIdx, setLightboxIdx] = useState(null);
-  const isProfit = trade.pnl >= 0;
+
   const [y, m, d] = trade.date.slice(0, 10).split('-');
   const dateStr = new Date(+y, +m - 1, +d).toLocaleDateString('en-US', {
     month: 'short', day: 'numeric', year: 'numeric',
   });
+
   const imgs = trade.images ?? [];
+  const outcome = getOutcome(trade.pnl);
+  const isProfit = trade.pnl > 0;
+  const isBreakeven = trade.pnl === 0;
+  const rValue = getRValue(trade.pnl, trade.stopLoss);
+
+  const propFirmShort = account ? (PROP_FIRMS[account.firm]?.shortName ?? account.firm) : null;
+  const propFirmFull = account ? (PROP_FIRMS[account.firm]?.name ?? account.firm) : null;
+  const accountCode = account ? getAccountCode(account) : null;
+
+  const outcomeClass = isBreakeven
+    ? 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+    : isProfit
+    ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400'
+    : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400';
+
+  const barClass = isBreakeven ? 'bg-gray-400' : isProfit ? 'bg-green-500' : 'bg-red-500';
+
+  const pnlClass = isBreakeven
+    ? 'text-gray-600 dark:text-gray-400'
+    : isProfit
+    ? 'text-green-600 dark:text-green-400'
+    : 'text-red-600 dark:text-red-400';
 
   return (
     <>
       <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl px-4 py-3 flex items-start gap-3 shadow-sm dark:shadow-none">
-        <div className={`w-1 self-stretch rounded-full flex-shrink-0 mt-0.5 ${isProfit ? 'bg-green-500' : 'bg-red-500'}`} />
+        <div className={`w-1 self-stretch rounded-full flex-shrink-0 mt-0.5 ${barClass}`} />
 
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
+          {/* Row 1: trade# + date + instrument + outcome */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {trade.tradeNumber != null && (
+              <span className="text-xs font-mono text-gray-400 dark:text-gray-500 flex-shrink-0">
+                #{trade.tradeNumber}
+              </span>
+            )}
             <span className="text-sm font-medium text-gray-900 dark:text-white">{dateStr}</span>
             {trade.instrument && (
-              <span className="text-xs text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">
+              <span className="text-xs text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded flex-shrink-0">
                 {trade.instrument}
               </span>
             )}
+            <span className={`text-xs font-medium px-1.5 py-0.5 rounded flex-shrink-0 ${outcomeClass}`}>
+              {outcome}
+            </span>
           </div>
+
+          {/* Row 2: trade name + firm + account code + R value */}
+          <div className="flex items-center gap-2 mt-1 flex-wrap">
+            {trade.tradeName && (
+              <span className="text-xs font-medium text-gray-700 dark:text-gray-300 truncate max-w-[140px]">
+                {trade.tradeName}
+              </span>
+            )}
+            {propFirmFull && (
+              <span className="text-xs text-gray-400 dark:text-gray-500 flex-shrink-0">{propFirmFull}</span>
+            )}
+            {accountCode && (
+              <span className="text-xs font-mono text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded flex-shrink-0">
+                {accountCode}
+              </span>
+            )}
+            <span className={`text-xs font-medium flex-shrink-0 ${rValue != null ? (rValue >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400') : 'text-gray-400 dark:text-gray-600'}`}>
+              {rValue != null ? `${rValue >= 0 ? '+' : ''}${rValue.toFixed(2)}R` : '—'}
+            </span>
+          </div>
+
           {trade.notes && (
             <p className="text-xs text-gray-400 dark:text-gray-500 truncate mt-0.5">{trade.notes}</p>
           )}
+
           {imgs.length > 0 && (
             <div className="flex gap-1.5 mt-2 flex-wrap">
               {imgs.map((src, i) => (
@@ -63,34 +129,36 @@ function TradeRow({ trade, onDelete }) {
           )}
         </div>
 
-        <span className={`text-base font-bold flex-shrink-0 ${isProfit ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-          {isProfit ? '+' : ''}${trade.pnl.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
-        </span>
+        <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+          <span className={`text-base font-bold ${pnlClass}`}>
+            {isProfit ? '+' : ''}${trade.pnl.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+          </span>
 
-        {confirming ? (
-          <div className="flex gap-1 flex-shrink-0">
+          {confirming ? (
+            <div className="flex gap-1">
+              <button
+                onClick={() => { onDelete(trade.id); setConfirming(false); }}
+                className="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/40 rounded-lg px-2 py-1.5 leading-none"
+              >
+                Delete
+              </button>
+              <button
+                onClick={() => setConfirming(false)}
+                className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 rounded-lg px-2 py-1.5 leading-none"
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
             <button
-              onClick={() => { onDelete(trade.id); setConfirming(false); }}
-              className="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/40 rounded-lg px-2 py-1.5 leading-none"
+              onClick={() => setConfirming(true)}
+              className="text-gray-300 dark:text-gray-700 hover:text-red-500 dark:hover:text-red-400 text-xl leading-none transition-colors"
+              aria-label="Delete trade"
             >
-              Delete
+              ×
             </button>
-            <button
-              onClick={() => setConfirming(false)}
-              className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 rounded-lg px-2 py-1.5 leading-none"
-            >
-              Cancel
-            </button>
-          </div>
-        ) : (
-          <button
-            onClick={() => setConfirming(true)}
-            className="text-gray-300 dark:text-gray-700 hover:text-red-500 dark:hover:text-red-400 text-xl leading-none transition-colors flex-shrink-0"
-            aria-label="Delete trade"
-          >
-            ×
-          </button>
-        )}
+          )}
+        </div>
       </div>
 
       {lightboxIdx !== null && (
@@ -119,7 +187,6 @@ function Lightbox({ images, startIndex, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/95 flex flex-col" onClick={onClose}>
-      {/* Top bar */}
       <div
         className="flex items-center justify-between px-4 py-3 flex-shrink-0"
         onClick={(e) => e.stopPropagation()}
@@ -135,7 +202,6 @@ function Lightbox({ images, startIndex, onClose }) {
         </button>
       </div>
 
-      {/* Image */}
       <div
         className="flex-1 flex items-center justify-center min-h-0 px-4 pb-4"
         onClick={(e) => e.stopPropagation()}
@@ -148,7 +214,6 @@ function Lightbox({ images, startIndex, onClose }) {
         />
       </div>
 
-      {/* Arrows + dots */}
       {images.length > 1 && (
         <div
           className="flex items-center justify-between px-2 pb-10 flex-shrink-0"
