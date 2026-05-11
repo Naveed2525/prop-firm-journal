@@ -108,6 +108,12 @@ function TradeRow({ trade, onDelete, account }) {
             </span>
           </div>
 
+{(trade.entry || trade.exit) && (
+  <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+    {trade.entry ? `Entry: $${trade.entry}` : ''}{trade.entry && trade.exit ? ' · ' : ''}{trade.exit ? `Exit: $${trade.exit}` : ''}
+  </p>
+)}
+
           {trade.notes && (
             <p className="text-xs text-gray-400 dark:text-gray-500 truncate mt-0.5">{trade.notes}</p>
           )}
