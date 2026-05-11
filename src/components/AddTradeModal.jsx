@@ -23,7 +23,7 @@ function resizeImage(file, maxPx, quality) {
 
 export default function AddTradeModal({ onSave, onClose }) {
   const today = new Date().toISOString().slice(0, 10);
-  const [form, setForm] = useState({ date: today, pnl: '', instrument: 'ES', notes: '', tradeName: '', stopLoss: '' });
+  const [form, setForm] = useState({ date: today, pnl: '', instrument: 'ES', notes: '', tradeName: '', stopLoss: '', entry: '', exit: '' });
   const [images, setImages] = useState([]);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
@@ -48,9 +48,11 @@ export default function AddTradeModal({ onSave, onClose }) {
     const pnlNum = parseFloat(form.pnl);
     if (isNaN(pnlNum)) { setErr('Enter a valid P&L number.'); return; }
     const stopLossNum = form.stopLoss !== '' ? parseFloat(form.stopLoss) : null;
+    const entryNum = form.entry !== '' ? parseFloat(form.entry) : null;
+    const exitNum = form.exit !== '' ? parseFloat(form.exit) : null;
     setSaving(true);
     try {
-      await onSave({ ...form, pnl: pnlNum, stopLoss: stopLossNum, images });
+      await onSave({ ...form, pnl: pnlNum, stopLoss: stopLossNum, entry: entryNum, exit: exitNum, images });
       onClose();
     } catch (ex) {
       setErr(ex.message);
@@ -90,6 +92,25 @@ export default function AddTradeModal({ onSave, onClose }) {
               className="input"
             />
           </Field>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Entry Price">
+              <input
+                type="number" step="0.01" placeholder="e.g. 5240.50"
+                value={form.entry} onChange={set('entry')}
+                className="input"
+                inputMode="decimal"
+              />
+            </Field>
+            <Field label="Exit Price">
+              <input
+                type="number" step="0.01" placeholder="e.g. 5247.25"
+                value={form.exit} onChange={set('exit')}
+                className="input"
+                inputMode="decimal"
+              />
+            </Field>
+          </div>
 
           <div className="grid grid-cols-2 gap-3">
             <Field label="Day P&L ($)">
