@@ -47,7 +47,6 @@ function TradeRow({ trade, onDelete, account }) {
   const isBreakeven = trade.pnl === 0;
   const rValue = getRValue(trade.pnl, trade.stopLoss);
 
-  const propFirmShort = account ? (PROP_FIRMS[account.firm]?.shortName ?? account.firm) : null;
   const propFirmFull = account ? (PROP_FIRMS[account.firm]?.name ?? account.firm) : null;
   const accountCode = account ? getAccountCode(account) : null;
 
