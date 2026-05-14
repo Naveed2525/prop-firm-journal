@@ -56,6 +56,7 @@ export default function AddTradeModal({ onSave, onClose }) {
   const today = new Date().toISOString().slice(0, 10);
   const [form, setForm] = useState({
     date: today, instrument: 'ES', tradeName: '',
+    direction: 'Long',
     entryTime: '', exitTime: '',
     entry: '', exit: '', contracts: '1',
     pnl: '', stopLoss: '', notes: '',
@@ -80,7 +81,7 @@ export default function AddTradeModal({ onSave, onClose }) {
     }
   }, [form.entryTime, form.exitTime]);
 
-  // Auto-calculate P&L from entry/exit price + contracts
+  // Auto-calculate P&L from entry/exit price + contracts + direction
   useEffect(() => {
     const entry = parseFloat(form.entry);
     const exit = parseFloat(form.exit);
@@ -88,14 +89,15 @@ export default function AddTradeModal({ onSave, onClose }) {
     const tickSize = TICK_SIZES[form.instrument] || 0.25;
     const tickValue = TICK_VALUES[form.instrument] || 5;
     if (!isNaN(entry) && !isNaN(exit)) {
-      const ticks = (exit - entry) / tickSize;
-      const pnl = parseFloat((ticks * tickValue * contracts).toFixed(2));
+      const rawTicks = (exit - entry) / tickSize;
+      const directionMultiplier = form.direction === 'Short' ? -1 : 1;
+      const pnl = parseFloat((rawTicks * tickValue * contracts * directionMultiplier).toFixed(2));
       setAutoPnl(pnl);
       setForm(f => ({ ...f, pnl: String(pnl) }));
     } else {
       setAutoPnl(null);
     }
-  }, [form.entry, form.exit, form.contracts, form.instrument]);
+  }, [form.entry, form.exit, form.contracts, form.instrument, form.direction]);
 
   const handleFiles = (e) => {
     const files = Array.from(e.target.files);
@@ -163,6 +165,30 @@ export default function AddTradeModal({ onSave, onClose }) {
           <Field label="Trade Name (optional)">
             <input type="text" placeholder='e.g. "Morning Breakout" or "Trade 1"' value={form.tradeName} onChange={set('tradeName')} className="input" />
           </Field>
+
+          {/* Direction toggle */}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setForm(f => ({ ...f, direction: 'Long' }))}
+              className="flex-1 py-3 rounded-2xl font-bold text-sm transition-all"
+              style={form.direction === 'Long'
+                ? { background: '#16a34a', color: '#fff', boxShadow: '0 2px 8px rgba(22,163,74,0.35)' }
+                : { background: 'transparent', color: '#16a34a', border: '2px solid #16a34a' }}
+            >
+              Long
+            </button>
+            <button
+              type="button"
+              onClick={() => setForm(f => ({ ...f, direction: 'Short' }))}
+              className="flex-1 py-3 rounded-2xl font-bold text-sm transition-all"
+              style={form.direction === 'Short'
+                ? { background: '#dc2626', color: '#fff', boxShadow: '0 2px 8px rgba(220,38,38,0.35)' }
+                : { background: 'transparent', color: '#dc2626', border: '2px solid #dc2626' }}
+            >
+              Short
+            </button>
+          </div>
 
           {/* Entry Time + Exit Time (with seconds) */}
           <div className="grid grid-cols-2 gap-3">
