@@ -1,6 +1,18 @@
 import { useEffect, useState } from 'react';
 import { PROP_FIRMS, getAccountCode } from '../data/propFirms';
 
+function formatTo12h(t) {
+  if (!t) return null;
+  const parts = t.split(':').map(Number);
+  if (parts.length < 2 || parts.some(isNaN)) return null;
+  const [h, m, s] = parts;
+  const period = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 || 12;
+  const mm = String(m).padStart(2, '0');
+  if (s != null) return `${h12}:${mm}:${String(s).padStart(2, '0')} ${period}`;
+  return `${h12}:${mm} ${period}`;
+}
+
 function getOutcome(pnl) {
   if (pnl > 0) return 'Win';
   if (pnl < 0) return 'Loss';
@@ -110,7 +122,7 @@ function TradeRow({ trade, onDelete, account }) {
 
 {(trade.entryTime || trade.exitTime) && (
   <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
-    {trade.entryTime ? `In: ${trade.entryTime}` : ''}{trade.entryTime && trade.exitTime ? ' · ' : ''}{trade.exitTime ? `Out: ${trade.exitTime}` : ''}
+    {trade.entryTime ? `In: ${formatTo12h(trade.entryTime) ?? trade.entryTime}` : ''}{trade.entryTime && trade.exitTime ? ' · ' : ''}{trade.exitTime ? `Out: ${formatTo12h(trade.exitTime) ?? trade.exitTime}` : ''}
   </p>
 )}
 {(trade.entry || trade.exit) && (

@@ -65,6 +65,18 @@ function isValidTimeFormat(t) {
   return /^\d{2}:\d{2}(:\d{2})?$/.test(t);
 }
 
+function formatTo12h(t) {
+  if (!t) return null;
+  const parts = t.split(':').map(Number);
+  if (parts.length < 2 || parts.some(isNaN)) return null;
+  const [h, m, s] = parts;
+  const period = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 || 12;
+  const mm = String(m).padStart(2, '0');
+  if (s != null) return `${h12}:${mm}:${String(s).padStart(2, '0')} ${period}`;
+  return `${h12}:${mm} ${period}`;
+}
+
 export default function AddTradeModal({ onSave, onClose }) {
   const today = new Date().toISOString().slice(0, 10);
   const [form, setForm] = useState({
@@ -212,7 +224,12 @@ export default function AddTradeModal({ onSave, onClose }) {
                 maxLength={8}
                 inputMode="numeric"
               />
-              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Format: HH:MM:SS e.g. 09:30:00</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                Format: HH:MM:SS e.g. 09:30:00
+                {form.entryTime && isValidTimeFormat(form.entryTime) && (
+                  <span className="ml-2 text-blue-500 dark:text-blue-400 font-medium">→ {formatTo12h(form.entryTime)}</span>
+                )}
+              </p>
             </Field>
             <Field label="Exit Time">
               <input
@@ -224,7 +241,12 @@ export default function AddTradeModal({ onSave, onClose }) {
                 maxLength={8}
                 inputMode="numeric"
               />
-              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Format: HH:MM:SS e.g. 09:30:00</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                Format: HH:MM:SS e.g. 09:30:00
+                {form.exitTime && isValidTimeFormat(form.exitTime) && (
+                  <span className="ml-2 text-blue-500 dark:text-blue-400 font-medium">→ {formatTo12h(form.exitTime)}</span>
+                )}
+              </p>
             </Field>
           </div>
 
