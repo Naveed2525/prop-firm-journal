@@ -36,7 +36,8 @@ function resizeImage(file, maxPx, quality) {
 
 function timeToSeconds(t) {
   if (!t) return null;
-  const parts = t.split(':').map(Number);
+  const parts = t.trim().split(':').map(Number);
+  if (parts.some(isNaN)) return null;
   if (parts.length === 2) return parts[0] * 3600 + parts[1] * 60;
   if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
   return null;
@@ -70,7 +71,6 @@ export default function AddTradeModal({ onSave, onClose }) {
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
 
-  // Auto-calculate duration from entry/exit time
   useEffect(() => {
     const e = timeToSeconds(form.entryTime);
     const x = timeToSeconds(form.exitTime);
@@ -81,7 +81,6 @@ export default function AddTradeModal({ onSave, onClose }) {
     }
   }, [form.entryTime, form.exitTime]);
 
-  // Auto-calculate P&L from entry/exit price + contracts + direction
   useEffect(() => {
     const entry = parseFloat(form.entry);
     const exit = parseFloat(form.exit);
@@ -90,8 +89,8 @@ export default function AddTradeModal({ onSave, onClose }) {
     const tickValue = TICK_VALUES[form.instrument] || 5;
     if (!isNaN(entry) && !isNaN(exit)) {
       const rawTicks = (exit - entry) / tickSize;
-      const directionMultiplier = form.direction === 'Short' ? -1 : 1;
-      const pnl = parseFloat((rawTicks * tickValue * contracts * directionMultiplier).toFixed(2));
+      const dirMult = form.direction === 'Short' ? -1 : 1;
+      const pnl = parseFloat((rawTicks * tickValue * contracts * dirMult).toFixed(2));
       setAutoPnl(pnl);
       setForm(f => ({ ...f, pnl: String(pnl) }));
     } else {
@@ -119,16 +118,19 @@ export default function AddTradeModal({ onSave, onClose }) {
     const entryNum = form.entry !== '' ? parseFloat(form.entry) : null;
     const exitNum = form.exit !== '' ? parseFloat(form.exit) : null;
     const contractsNum = parseInt(form.contracts) || 1;
-    const entryTime = form.entryTime || null;
-    const exitTime = form.exitTime || null;
-    const durationStr = duration || null;
     setSaving(true);
     try {
       await onSave({
-        ...form, pnl: pnlNum, stopLoss: stopLossNum,
-        entry: entryNum, exit: exitNum,
+        ...form,
+        pnl: pnlNum,
+        stopLoss: stopLossNum,
+        entry: entryNum,
+        exit: exitNum,
         contracts: contractsNum,
-        entryTime, exitTime, duration: durationStr, images,
+        entryTime: form.entryTime || null,
+        exitTime: form.exitTime || null,
+        duration: duration || null,
+        images,
       });
       onClose();
     } catch (ex) {
@@ -138,13 +140,14 @@ export default function AddTradeModal({ onSave, onClose }) {
   };
 
   const pnlColor = autoPnl != null ? (autoPnl >= 0 ? '#16a34a' : '#dc2626') : undefined;
+  const isLong = form.direction === 'Long';
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 dark:bg-black/75 backdrop-blur-sm flex items-end">
       <div className="bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 rounded-t-3xl w-full p-6 overflow-y-auto" style={{ maxHeight: '92vh', paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom))' }}>
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-bold text-gray-900 dark:text-white">Log Trade</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 dark:hover:text-white w-8 h-8 flex items-center justify-center text-2xl leading-none rounded-full hover:bg-gray-100 dark:hover:bg-gray-800">×</button>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 dark:hover:text-white w-8 h-8 flex items-center justify-center text-2xl leading-none rounded-full hover:bg-gray-100 dark:hover:bg-gray-800">&times;</button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -161,60 +164,47 @@ export default function AddTradeModal({ onSave, onClose }) {
             </Field>
           </div>
 
+          {/* Long / Short */}
+          <div className="flex gap-2">
+            <button type="button" onClick={() => setForm(f => ({ ...f, direction: 'Long' }))}
+              className="flex-1 py-3 rounded-2xl font-bold text-sm transition-all"
+              style={isLong
+                ? { background: '#16a34a', color: '#fff', border: '2px solid #16a34a' }
+                : { background: 'transparent', color: '#16a34a', border: '2px solid #16a34a' }}>
+              Long
+            </button>
+            <button type="button" onClick={() => setForm(f => ({ ...f, direction: 'Short' }))}
+              className="flex-1 py-3 rounded-2xl font-bold text-sm transition-all"
+              style={!isLong
+                ? { background: '#dc2626', color: '#fff', border: '2px solid #dc2626' }
+                : { background: 'transparent', color: '#dc2626', border: '2px solid #dc2626' }}>
+              Short
+            </button>
+          </div>
+
           {/* Trade Name */}
           <Field label="Trade Name (optional)">
             <input type="text" placeholder='e.g. "Morning Breakout" or "Trade 1"' value={form.tradeName} onChange={set('tradeName')} className="input" />
           </Field>
 
-          {/* Direction toggle */}
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setForm(f => ({ ...f, direction: 'Long' }))}
-              className="flex-1 py-3 rounded-2xl font-bold text-sm transition-all"
-              style={form.direction === 'Long'
-                ? { background: '#16a34a', color: '#fff', boxShadow: '0 2px 8px rgba(22,163,74,0.35)' }
-                : { background: 'transparent', color: '#16a34a', border: '2px solid #16a34a' }}
-            >
-              Long
-            </button>
-            <button
-              type="button"
-              onClick={() => setForm(f => ({ ...f, direction: 'Short' }))}
-              className="flex-1 py-3 rounded-2xl font-bold text-sm transition-all"
-              style={form.direction === 'Short'
-                ? { background: '#dc2626', color: '#fff', boxShadow: '0 2px 8px rgba(220,38,38,0.35)' }
-                : { background: 'transparent', color: '#dc2626', border: '2px solid #dc2626' }}
-            >
-              Short
-            </button>
-          </div>
-
-          {/* Entry Time + Exit Time (with seconds) */}
+          {/* Entry Time + Exit Time */}
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Entry Time">
+            <Field label="Entry Time (HH:MM:SS)">
               <input type="text" placeholder="e.g. 09:30:00" value={form.entryTime} onChange={set('entryTime')} className="input" />
             </Field>
-            <Field label="Exit Time">
-              <input type="text" placeholder="e.g. 09:30:00" value={form.exitTime} onChange={set('exitTime')} className="input" />
+            <Field label="Exit Time (HH:MM:SS)">
+              <input type="text" placeholder="e.g. 09:34:22" value={form.exitTime} onChange={set('exitTime')} className="input" />
             </Field>
           </div>
 
-          {/* Duration — auto calculated */}
+          {/* Duration */}
           {duration && (
-            <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-950 rounded-xl">
-              <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">⏱ Trade duration:</span>
-              <span className="text-sm font-bold text-blue-700 dark:text-blue-300">{duration}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: '#eff6ff', borderRadius: 10 }}>
+              <span style={{ fontSize: 12, color: '#2563eb', fontWeight: 600 }}>Trade duration:</span>
+              <span style={{ fontSize: 14, fontWeight: 700, color: '#1d4ed8' }}>{duration}</span>
             </div>
           )}
 
-{/* Duration — auto calculated */}
-          {duration && (
-            <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-950 rounded-xl">
-              <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">⏱ Trade duration:</span>
-              <span className="text-sm font-bold text-blue-700 dark:text-blue-300">{duration}</span>
-            </div>
-          )}
           {/* Entry Price + Exit Price + Contracts */}
           <div className="grid grid-cols-3 gap-3">
             <Field label="Entry Price">
@@ -228,42 +218,40 @@ export default function AddTradeModal({ onSave, onClose }) {
             </Field>
           </div>
 
-          {/* Day P&L — auto filled but editable + Risk/Stop */}
+          {/* Auto P&L hint */}
+          {autoPnl != null && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, background: autoPnl >= 0 ? '#f0fdf4' : '#fff1f2' }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: autoPnl >= 0 ? '#16a34a' : '#dc2626' }}>
+                Auto P&L ({form.direction}): {autoPnl >= 0 ? '+' : ''}${autoPnl.toFixed(2)}
+              </span>
+              <span style={{ fontSize: 11, color: '#9ca3af' }}>(you can override below)</span>
+            </div>
+          )}
+
+          {/* Day P&L + Risk/Stop */}
           <div className="grid grid-cols-2 gap-3">
             <Field label={autoPnl != null ? 'Day P&L (auto-calculated)' : 'Day P&L ($)'}>
-              <input
-                type="number" step="0.01" placeholder="e.g. 350 or -125"
+              <input type="number" step="0.01" placeholder="e.g. 350 or -125"
                 value={form.pnl} onChange={set('pnl')} required
                 className="input text-xl font-semibold"
-                inputMode="decimal"
-                style={{ color: pnlColor }}
-              />
+                inputMode="decimal" style={{ color: pnlColor }} />
             </Field>
             <Field label="Risk / Stop ($)">
               <input type="number" step="0.01" placeholder="e.g. 200" value={form.stopLoss} onChange={set('stopLoss')} className="input text-xl font-semibold" inputMode="decimal" />
             </Field>
           </div>
 
-          {/* Auto P&L hint */}
-          {autoPnl != null && (
-            <div className="flex items-center gap-2 px-3 py-2 rounded-xl" style={{ background: autoPnl >= 0 ? '#f0fdf4' : '#fff1f2' }}>
-              <span className="text-xs font-medium" style={{ color: autoPnl >= 0 ? '#16a34a' : '#dc2626' }}>
-                {autoPnl >= 0 ? '📈' : '📉'} Auto P&L from entry/exit: {autoPnl >= 0 ? '+' : ''}${autoPnl.toFixed(2)}
-              </span>
-              <span className="text-xs text-gray-400">(you can override)</span>
-            </div>
-          )}
-
           {/* Notes */}
           <Field label="Notes (optional)">
-            <textarea rows={2} placeholder="Quick notes…" value={form.notes} onChange={set('notes')} className="input resize-none" />
+            <textarea rows={2} placeholder="Quick notes..." value={form.notes} onChange={set('notes')} className="input resize-none" />
           </Field>
 
           {/* Screenshots */}
           <Field label="Screenshots (optional)">
             <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleFiles} />
             {images.length === 0 ? (
-              <button type="button" onClick={() => fileInputRef.current?.click()} className="w-full flex items-center justify-center gap-2 text-sm text-gray-400 dark:text-gray-500 border border-dashed border-gray-300 dark:border-gray-700 rounded-xl py-3 hover:border-blue-400 hover:text-blue-500 transition-colors">
+              <button type="button" onClick={() => fileInputRef.current?.click()}
+                className="w-full flex items-center justify-center gap-2 text-sm text-gray-400 dark:text-gray-500 border border-dashed border-gray-300 dark:border-gray-700 rounded-xl py-3 hover:border-blue-400 hover:text-blue-500 transition-colors">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
                   <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
@@ -275,18 +263,25 @@ export default function AddTradeModal({ onSave, onClose }) {
                 {images.map((src, i) => (
                   <div key={i} className="relative flex-shrink-0">
                     <img src={src} alt="" className="w-16 h-16 object-cover rounded-xl" />
-                    <button type="button" onClick={() => removeImage(i)} className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded-full text-xs flex items-center justify-center leading-none shadow-sm transition-colors">×</button>
+                    <button type="button" onClick={() => removeImage(i)}
+                      className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded-full text-xs flex items-center justify-center leading-none shadow-sm transition-colors">
+                      &times;
+                    </button>
                   </div>
                 ))}
-                <button type="button" onClick={() => fileInputRef.current?.click()} className="w-16 h-16 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-xl flex items-center justify-center text-xl text-gray-400 hover:border-blue-400 hover:text-blue-400 transition-colors">+</button>
+                <button type="button" onClick={() => fileInputRef.current?.click()}
+                  className="w-16 h-16 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-xl flex items-center justify-center text-xl text-gray-400 hover:border-blue-400 hover:text-blue-400 transition-colors">
+                  +
+                </button>
               </div>
             )}
           </Field>
 
           {err && <p className="text-red-600 dark:text-red-400 text-sm">{err}</p>}
 
-          <button type="submit" disabled={saving} className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-2xl py-4 font-semibold text-base transition-colors">
-            {saving ? 'Saving…' : 'Save Trade'}
+          <button type="submit" disabled={saving}
+            className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-2xl py-4 font-semibold text-base transition-colors">
+            {saving ? 'Saving...' : 'Save Trade'}
           </button>
         </form>
       </div>
