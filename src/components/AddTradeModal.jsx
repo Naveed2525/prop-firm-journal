@@ -208,6 +208,13 @@ export default function AddTradeModal({ onSave, onClose }) {
             </div>
           )}
 
+{/* Duration — auto calculated */}
+          {duration && (
+            <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-950 rounded-xl">
+              <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">⏱ Trade duration:</span>
+              <span className="text-sm font-bold text-blue-700 dark:text-blue-300">{duration}</span>
+            </div>
+          )}
           {/* Entry Price + Exit Price + Contracts */}
           <div className="grid grid-cols-3 gap-3">
             <Field label="Entry Price">
