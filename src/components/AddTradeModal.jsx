@@ -34,9 +34,28 @@ function resizeImage(file, maxPx, quality) {
   });
 }
 
+function to24h(t) {
+  if (!t) return null;
+  const trimmed = t.trim();
+  const match12 = trimmed.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)$/i);
+  if (match12) {
+    let h = parseInt(match12[1]);
+    const m = parseInt(match12[2]);
+    const s = match12[3] ? parseInt(match12[3]) : 0;
+    const period = match12[4].toUpperCase();
+    if (period === 'AM' && h === 12) h = 0;
+    if (period === 'PM' && h !== 12) h += 12;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  }
+  if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(trimmed)) return trimmed;
+  return null;
+}
+
 function timeToSeconds(t) {
   if (!t) return null;
-  const parts = t.trim().split(':').map(Number);
+  const t24 = to24h(t.trim());
+  if (!t24) return null;
+  const parts = t24.split(':').map(Number);
   if (parts.some(isNaN)) return null;
   if (parts.length === 2) return parts[0] * 3600 + parts[1] * 60;
   if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
@@ -54,6 +73,14 @@ function secondsToDuration(secs) {
 }
 
 function formatTimeInput(raw) {
+  const firstColonIdx = raw.indexOf(':');
+  const hourPart = firstColonIdx >= 0 ? raw.slice(0, firstColonIdx) : '';
+  if (/[aApPmM\s]/.test(raw) || (firstColonIdx > 0 && /^\d$/.test(hourPart))) {
+    return raw
+      .replace(/[^0-9:\saApPmM]/g, '')
+      .replace(/am/gi, 'AM')
+      .replace(/pm/gi, 'PM');
+  }
   const digits = raw.replace(/\D/g, '').slice(0, 6);
   if (digits.length <= 2) return digits;
   if (digits.length <= 4) return `${digits.slice(0, 2)}:${digits.slice(2)}`;
@@ -62,19 +89,24 @@ function formatTimeInput(raw) {
 
 function isValidTimeFormat(t) {
   if (!t) return true;
-  return /^\d{2}:\d{2}(:\d{2})?$/.test(t);
+  const s = t.trim();
+  if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(s)) return true;
+  if (/^\d{1,2}:\d{2}(:\d{2})?\s*(AM|PM)$/i.test(s)) return true;
+  return false;
 }
 
 function formatTo12h(t) {
   if (!t) return null;
-  const parts = t.split(':').map(Number);
+  const t24 = to24h(t.trim());
+  if (!t24) return null;
+  const parts = t24.split(':').map(Number);
   if (parts.length < 2 || parts.some(isNaN)) return null;
   const [h, m, s] = parts;
   const period = h >= 12 ? 'PM' : 'AM';
   const h12 = h % 12 || 12;
   const mm = String(m).padStart(2, '0');
-  if (s != null) return `${h12}:${mm}:${String(s).padStart(2, '0')} ${period}`;
-  return `${h12}:${mm} ${period}`;
+  const ss = s ? `:${String(s).padStart(2, '0')}` : '';
+  return `${h12}:${mm}${ss} ${period}`;
 }
 
 export default function AddTradeModal({ onSave, onClose }) {
@@ -152,8 +184,8 @@ export default function AddTradeModal({ onSave, onClose }) {
         entry: entryNum,
         exit: exitNum,
         contracts: contractsNum,
-        entryTime: form.entryTime || null,
-        exitTime: form.exitTime || null,
+        entryTime: form.entryTime ? (to24h(form.entryTime.trim()) || form.entryTime) : null,
+        exitTime: form.exitTime ? (to24h(form.exitTime.trim()) || form.exitTime) : null,
         duration: duration || null,
         images,
       });
@@ -217,36 +249,28 @@ export default function AddTradeModal({ onSave, onClose }) {
             <Field label="Entry Time">
               <input
                 type="text"
-                placeholder="e.g. 09:30:00"
+                placeholder="e.g. 09:30:00 or 1:30 PM"
                 value={form.entryTime}
                 onChange={handleTimeChange('entryTime')}
                 className={`input${form.entryTime && !isValidTimeFormat(form.entryTime) ? ' border-red-500 ring-1 ring-red-500' : ''}`}
-                maxLength={8}
-                inputMode="numeric"
+                maxLength={11}
               />
-              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                Format: HH:MM:SS e.g. 09:30:00
-                {form.entryTime && isValidTimeFormat(form.entryTime) && (
-                  <span className="ml-2 text-blue-500 dark:text-blue-400 font-medium">→ {formatTo12h(form.entryTime)}</span>
-                )}
-              </p>
+              {form.entryTime && isValidTimeFormat(form.entryTime) && (
+                <p className="text-xs text-blue-500 dark:text-blue-400 mt-1 font-medium">→ {formatTo12h(form.entryTime)}</p>
+              )}
             </Field>
             <Field label="Exit Time">
               <input
                 type="text"
-                placeholder="e.g. 09:30:00"
+                placeholder="e.g. 09:30:00 or 1:30 PM"
                 value={form.exitTime}
                 onChange={handleTimeChange('exitTime')}
                 className={`input${form.exitTime && !isValidTimeFormat(form.exitTime) ? ' border-red-500 ring-1 ring-red-500' : ''}`}
-                maxLength={8}
-                inputMode="numeric"
+                maxLength={11}
               />
-              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                Format: HH:MM:SS e.g. 09:30:00
-                {form.exitTime && isValidTimeFormat(form.exitTime) && (
-                  <span className="ml-2 text-blue-500 dark:text-blue-400 font-medium">→ {formatTo12h(form.exitTime)}</span>
-                )}
-              </p>
+              {form.exitTime && isValidTimeFormat(form.exitTime) && (
+                <p className="text-xs text-blue-500 dark:text-blue-400 mt-1 font-medium">→ {formatTo12h(form.exitTime)}</p>
+              )}
             </Field>
           </div>
 
