@@ -193,10 +193,10 @@ export default function AddTradeModal({ onSave, onClose }) {
           {/* Entry Time + Exit Time (with seconds) */}
           <div className="grid grid-cols-2 gap-3">
             <Field label="Entry Time">
-              <input type="time" step="1" value={form.entryTime} onChange={set('entryTime')} className="input" />
+              <input type="text" placeholder="e.g. 09:30:00" value={form.entryTime} onChange={set('entryTime')} className="input" />
             </Field>
             <Field label="Exit Time">
-              <input type="time" step="1" value={form.exitTime} onChange={set('exitTime')} className="input" />
+              <input type="text" placeholder="e.g. 09:30:00" value={form.exitTime} onChange={set('exitTime')} className="input" />
             </Field>
           </div>
 
