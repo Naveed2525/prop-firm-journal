@@ -53,6 +53,18 @@ function secondsToDuration(secs) {
   return `${s}s`;
 }
 
+function formatTimeInput(raw) {
+  const digits = raw.replace(/\D/g, '').slice(0, 6);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, 2)}:${digits.slice(2)}`;
+  return `${digits.slice(0, 2)}:${digits.slice(2, 4)}:${digits.slice(4)}`;
+}
+
+function isValidTimeFormat(t) {
+  if (!t) return true;
+  return /^\d{2}:\d{2}(:\d{2})?$/.test(t);
+}
+
 export default function AddTradeModal({ onSave, onClose }) {
   const today = new Date().toISOString().slice(0, 10);
   const [form, setForm] = useState({
@@ -70,6 +82,7 @@ export default function AddTradeModal({ onSave, onClose }) {
   const fileInputRef = useRef(null);
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
+  const handleTimeChange = (key) => (e) => setForm(f => ({ ...f, [key]: formatTimeInput(e.target.value) }));
 
   useEffect(() => {
     const e = timeToSeconds(form.entryTime);
@@ -189,11 +202,29 @@ export default function AddTradeModal({ onSave, onClose }) {
 
           {/* Entry Time + Exit Time */}
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Entry Time (HH:MM:SS)">
-              <input type="text" placeholder="e.g. 09:30:00" value={form.entryTime} onChange={set('entryTime')} className="input" />
+            <Field label="Entry Time">
+              <input
+                type="text"
+                placeholder="e.g. 09:30:00"
+                value={form.entryTime}
+                onChange={handleTimeChange('entryTime')}
+                className={`input${form.entryTime && !isValidTimeFormat(form.entryTime) ? ' border-red-500 ring-1 ring-red-500' : ''}`}
+                maxLength={8}
+                inputMode="numeric"
+              />
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Format: HH:MM:SS e.g. 09:30:00</p>
             </Field>
-            <Field label="Exit Time (HH:MM:SS)">
-              <input type="text" placeholder="e.g. 09:34:22" value={form.exitTime} onChange={set('exitTime')} className="input" />
+            <Field label="Exit Time">
+              <input
+                type="text"
+                placeholder="e.g. 09:30:00"
+                value={form.exitTime}
+                onChange={handleTimeChange('exitTime')}
+                className={`input${form.exitTime && !isValidTimeFormat(form.exitTime) ? ' border-red-500 ring-1 ring-red-500' : ''}`}
+                maxLength={8}
+                inputMode="numeric"
+              />
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Format: HH:MM:SS e.g. 09:30:00</p>
             </Field>
           </div>
 
