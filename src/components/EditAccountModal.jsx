@@ -27,6 +27,7 @@ export default function EditAccountModal({ account, onSave, onClose }) {
     return String(Math.round(account.consistencyOverride * 100));
   });
   const [blown, setBlown] = useState(account.blown ?? false);
+  const [passed, setPassed] = useState(account.status === 'passed');
   const [saving, setSaving] = useState(false);
 
   const firm = PROP_FIRMS[account.firm];
@@ -48,6 +49,7 @@ export default function EditAccountModal({ account, onSave, onClose }) {
       startDate,
       consistencyOverride,
       blown,
+      status: phase === 'evaluation' && passed ? 'passed' : null,
     });
     setSaving(false);
     onClose();
@@ -136,6 +138,23 @@ export default function EditAccountModal({ account, onSave, onClose }) {
 
         {/* Start Date */}
         {inp("Start Date", startDate, setStartDate, "date")}
+
+        {/* Mark as Passed toggle — eval only */}
+        {phase === 'evaluation' && (
+          <div style={{ marginBottom: 12, padding: "12px 14px", borderRadius: 10, border: passed ? "1px solid #6ee7b7" : "1px solid var(--border, #e5e7eb)", background: passed ? "#ecfdf5" : "var(--surface2, #f9fafb)" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }} onClick={() => setPassed(p => !p)}>
+              <div>
+                <p style={{ fontSize: 13, fontWeight: 700, color: passed ? "#059669" : "var(--text, #111)", margin: 0 }}>Mark as Passed</p>
+                <p style={{ fontSize: 11, color: passed ? "#10b981" : "var(--text2, #6b7280)", margin: "2px 0 0" }}>
+                  {passed ? "Eval marked passed — moved to Passed Eval section" : "Profit target hit and evaluation approved"}
+                </p>
+              </div>
+              <div style={{ width: 44, height: 24, borderRadius: 12, background: passed ? "#059669" : "#d1d5db", position: "relative", flexShrink: 0, transition: "background 0.2s" }}>
+                <div style={{ position: "absolute", top: 2, left: passed ? 22 : 2, width: 20, height: 20, borderRadius: "50%", background: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,0.2)", transition: "left 0.2s" }} />
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Mark as Blown toggle */}
         <div style={{ marginBottom: 20, padding: "12px 14px", borderRadius: 10, border: blown ? "1px solid #fca5a5" : "1px solid var(--border, #e5e7eb)", background: blown ? "#fef2f2" : "var(--surface2, #f9fafb)" }}>
