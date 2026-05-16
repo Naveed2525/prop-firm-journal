@@ -25,7 +25,7 @@ export default function App() {
         />
         <Route
           path="/account/:id"
-          element={<AccountDetail accounts={accounts} onDeleteAccount={deleteAccount} onUpdateAccount={updateAccount} />}
+          element={<AccountDetail accounts={accounts} onDeleteAccount={deleteAccount} onUpdateAccount={updateAccount} onAddAccount={addAccount} />}
         />
       </Routes>
     </BrowserRouter>

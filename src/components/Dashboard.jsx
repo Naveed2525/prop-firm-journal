@@ -15,12 +15,23 @@ export default function Dashboard({ accounts, loading, onAddAccount, isDark, onT
     try { await exportAllToCsv(accounts); } finally { setExporting(false); }
   };
 
-  const activeAccounts = accounts.filter((a) => !a.blown);
-  const blownAccounts  = accounts.filter((a) => a.blown === true);
-  const evalAccounts   = activeAccounts.filter((a) => a.phase !== 'funded');
-  const fundedAccounts = activeAccounts.filter((a) => a.phase === 'funded');
-  const blownEval      = blownAccounts.filter((a) => a.phase !== 'funded');
-  const blownFunded    = blownAccounts.filter((a) => a.phase === 'funded');
+  const blownAccounts      = accounts.filter((a) => a.blown === true);
+  const activeAccounts     = accounts.filter((a) => !a.blown);
+  const evalAccounts       = activeAccounts.filter((a) => a.phase !== 'funded' && a.status !== 'passed');
+  const passedEvalAccounts = activeAccounts.filter((a) => a.phase !== 'funded' && a.status === 'passed');
+  const fundedAccounts     = activeAccounts.filter((a) => a.phase === 'funded');
+  const blownEval          = blownAccounts.filter((a) => a.phase !== 'funded');
+  const blownFunded        = blownAccounts.filter((a) => a.phase === 'funded');
+
+  const headerSummary = (() => {
+    if (accounts.length === 0) return 'No accounts';
+    const parts = [];
+    if (evalAccounts.length > 0) parts.push(`${evalAccounts.length} eval`);
+    if (passedEvalAccounts.length > 0) parts.push(`${passedEvalAccounts.length} passed`);
+    if (fundedAccounts.length > 0) parts.push(`${fundedAccounts.length} funded`);
+    if (blownAccounts.length > 0) parts.push(`${blownAccounts.length} blown`);
+    return parts.join(' · ');
+  })();
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white">
@@ -29,11 +40,7 @@ export default function Dashboard({ accounts, loading, onAddAccount, isDark, onT
         <div className="flex items-center justify-between py-3">
           <div>
             <h1 className="text-xl font-bold tracking-tight">Futures Journal</h1>
-            <p className="text-xs text-gray-400 dark:text-gray-500">
-              {accounts.length === 0
-                ? 'No accounts'
-                : `${evalAccounts.length} eval · ${fundedAccounts.length} funded${blownAccounts.length > 0 ? ` · ${blownAccounts.length} blown` : ''}`}
-            </p>
+            <p className="text-xs text-gray-400 dark:text-gray-500">{headerSummary}</p>
           </div>
 
           <div className="flex items-center gap-2">
@@ -110,8 +117,8 @@ export default function Dashboard({ accounts, loading, onAddAccount, isDark, onT
           </div>
         ) : (
           <>
-            {/* Evaluation section */}
-            <SectionLabel title="Evaluation" count={evalAccounts.length} />
+            {/* Evaluation Accounts */}
+            <SectionLabel title="Evaluation Accounts" count={evalAccounts.length} />
             {evalAccounts.length === 0 ? (
               <EmptySection msg="No evaluation accounts" />
             ) : (
@@ -120,8 +127,20 @@ export default function Dashboard({ accounts, loading, onAddAccount, isDark, onT
               ))
             )}
 
-            {/* Funded section */}
-            <SectionLabel title="Funded" count={fundedAccounts.length} className="pt-3" />
+            {/* Passed Eval Accounts */}
+            {passedEvalAccounts.length > 0 && (
+              <div className="pt-3">
+                <SectionLabel title="Passed Eval Accounts" count={passedEvalAccounts.length} muted />
+                <div className="opacity-50 space-y-3 mt-1">
+                  {passedEvalAccounts.map((acc) => (
+                    <AccountCard key={acc.id} account={acc} onClick={() => navigate(`/account/${acc.id}`)} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Funded Accounts */}
+            <SectionLabel title="Funded Accounts" count={fundedAccounts.length} className="pt-3" />
             {fundedAccounts.length === 0 ? (
               <EmptySection msg="No funded accounts" />
             ) : (
@@ -130,7 +149,7 @@ export default function Dashboard({ accounts, loading, onAddAccount, isDark, onT
               ))
             )}
 
-            {/* Blown accounts toggle */}
+            {/* Blown Accounts toggle */}
             {blownAccounts.length > 0 && (
               <div className="pt-4">
                 <button
@@ -148,7 +167,6 @@ export default function Dashboard({ accounts, loading, onAddAccount, isDark, onT
 
                 {showBlown && (
                   <div className="mt-3 space-y-3">
-                    {/* Blown Eval */}
                     {blownEval.length > 0 && (
                       <>
                         <SectionLabel title="Blown Eval" count={blownEval.length} className="pt-1" />
@@ -157,8 +175,6 @@ export default function Dashboard({ accounts, loading, onAddAccount, isDark, onT
                         ))}
                       </>
                     )}
-
-                    {/* Blown Funded */}
                     {blownFunded.length > 0 && (
                       <>
                         <SectionLabel title="Blown Funded" count={blownFunded.length} className="pt-1" />
@@ -185,10 +201,10 @@ export default function Dashboard({ accounts, loading, onAddAccount, isDark, onT
   );
 }
 
-function SectionLabel({ title, count, className = '' }) {
+function SectionLabel({ title, count, className = '', muted = false }) {
   return (
     <div className={`flex items-center gap-2 pb-1 ${className}`}>
-      <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+      <p className={`text-xs font-semibold uppercase tracking-wider ${muted ? 'text-gray-300 dark:text-gray-600' : 'text-gray-400 dark:text-gray-500'}`}>
         {title}
       </p>
       <span className="text-xs text-gray-300 dark:text-gray-600 font-medium">{count}</span>

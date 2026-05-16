@@ -13,7 +13,7 @@ import RiskCalculator from './RiskCalculator';
 import Payouts from './Payouts';
 import EditAccountModal from './EditAccountModal';
 
-export default function AccountDetail({ accounts, onDeleteAccount, onUpdateAccount }) {
+export default function AccountDetail({ accounts, onDeleteAccount, onUpdateAccount, onAddAccount }) {
   const { id } = useParams();
   const navigate = useNavigate();
   const { trades, loading, addTrade, deleteTrade } = useTrades(id);
@@ -22,7 +22,8 @@ export default function AccountDetail({ accounts, onDeleteAccount, onUpdateAccou
   const [showRules, setShowRules] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showCalculator, setShowCalculator] = useState(false);
-const [showEdit, setShowEdit] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
+  const [passingAccount, setPassingAccount] = useState(false);
 
   const account = accounts.find((a) => a.id === id);
   if (!account) {
@@ -57,6 +58,24 @@ const [showEdit, setShowEdit] = useState(false);
     await onUpdateAccount(id, { blown: false });
   };
 
+  const handlePassAndOpenFunded = async () => {
+    setPassingAccount(true);
+    try {
+      await onUpdateAccount(id, { status: 'passed' });
+      const newAccount = await onAddAccount({
+        firm: account.firm,
+        size: account.size,
+        plan: account.plan,
+        phase: 'funded',
+        label: account.label || '',
+        startDate: new Date().toISOString().slice(0, 10),
+      });
+      navigate(`/account/${newAccount.id}`);
+    } catch {
+      setPassingAccount(false);
+    }
+  };
+
   const handleDelete = async () => {
     if (!confirm('Delete this account and all its trades? This cannot be undone.')) return;
     setDeleting(true);
@@ -79,6 +98,13 @@ const [showEdit, setShowEdit] = useState(false);
   const cyclePnL = m.pnlSinceLastPayout;
   const cycleRemaining = effectiveRules ? Math.max(effectiveRules.profitTarget - cyclePnL, 0) : 0;
   const profitTargetLabel = m.lastPayoutDate ? 'Next Payout Target' : 'Profit Target';
+
+  const profitTargetReached =
+    effectiveRules &&
+    cyclePnL >= effectiveRules.profitTarget &&
+    account.phase !== 'funded' &&
+    !account.blown &&
+    account.status !== 'passed';
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white pb-40">
@@ -111,9 +137,11 @@ const [showEdit, setShowEdit] = useState(false);
               ? 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400'
               : account.phase === 'funded'
               ? 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400'
+              : account.status === 'passed'
+              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400'
               : 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400'
           }`}>
-            {account.blown ? 'Blown' : account.phase === 'funded' ? 'Funded' : 'Eval'}
+            {account.blown ? 'Blown' : account.phase === 'funded' ? 'Funded' : account.status === 'passed' ? 'Passed' : 'Eval'}
           </span><button onClick={() => setShowEdit(true)} className="text-xs px-2 py-1 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300">Edit</button>
         </div>
       </div>
@@ -147,6 +175,32 @@ const [showEdit, setShowEdit] = useState(false);
               className="flex-shrink-0 text-xs font-semibold bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-lg transition-colors"
             >
               Mark Blown
+            </button>
+          </div>
+        )}
+
+        {/* Profit target congratulations banner */}
+        {profitTargetReached && (
+          <div className="rounded-xl border border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-950/70 px-4 py-4">
+            <div className="flex items-start gap-3 mb-3">
+              <span className="flex-shrink-0 text-2xl leading-none mt-0.5">🎉</span>
+              <div>
+                <p className="font-bold text-green-800 dark:text-green-200 text-sm">
+                  Profit Target Reached! You passed the evaluation.
+                </p>
+                <p className="text-xs text-green-700 dark:text-green-400 mt-1">
+                  ${cyclePnL.toLocaleString(undefined, { maximumFractionDigits: 0 })} /{' '}
+                  ${effectiveRules.profitTarget.toLocaleString()} achieved
+                  — verify consistency before submitting.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={handlePassAndOpenFunded}
+              disabled={passingAccount}
+              className="w-full text-sm font-semibold bg-green-600 hover:bg-green-700 active:bg-green-800 disabled:opacity-60 text-white px-4 py-2.5 rounded-xl transition-colors"
+            >
+              {passingAccount ? 'Creating funded account…' : 'Mark as Passed & Open Funded Account'}
             </button>
           </div>
         )}
