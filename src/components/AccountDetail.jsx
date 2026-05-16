@@ -40,8 +40,11 @@ export default function AccountDetail({ accounts, onDeleteAccount, onUpdateAccou
 
   const firm  = PROP_FIRMS[account.firm];
   const rules = getRules(account.firm, account.size, account.plan);
-  // Apply per-account consistency override (null = firm default, 0 = disabled, >0 = custom %)
-  const effectiveRules = applyConsistencyOverride(rules, account.consistencyOverride);
+  // Apply per-account overrides: consistency (null=default, 0=off, >0=custom), then profit target
+  const effectiveRules = applyProfitTargetOverride(
+    applyConsistencyOverride(rules, account.consistencyOverride),
+    account.profitTargetOverride
+  );
   const m     = computeMetrics(trades, payouts);
   const alerts = getAlerts(m, effectiveRules);
 
@@ -447,6 +450,13 @@ export default function AccountDetail({ accounts, onDeleteAccount, onUpdateAccou
 function applyConsistencyOverride(rules, override) {
   if (!rules || override == null) return rules;
   return { ...rules, consistencyRule: override === 0 ? null : override };
+}
+
+function applyProfitTargetOverride(rules, override) {
+  if (!rules || override == null) return rules;
+  const n = Number(override);
+  if (isNaN(n) || n <= 0) return rules;
+  return { ...rules, profitTarget: n };
 }
 
 function fmtPnl(n) {

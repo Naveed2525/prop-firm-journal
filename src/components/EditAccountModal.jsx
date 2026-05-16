@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { PROP_FIRMS } from "../data/propFirms";
+import { PROP_FIRMS, getRules } from "../data/propFirms";
 
 const CONSISTENCY_OPTIONS = [
   { label: "None (no consistency rule)", value: "" },
@@ -28,9 +28,17 @@ export default function EditAccountModal({ account, onSave, onClose }) {
   });
   const [blown, setBlown] = useState(account.blown ?? false);
   const [passed, setPassed] = useState(account.status === 'passed');
+  const [profitTargetOverride, setProfitTargetOverride] = useState(() => {
+    if (account.profitTargetOverride != null) return String(account.profitTargetOverride);
+    const def = getRules(account.firm, account.size, account.plan);
+    return def?.profitTarget ? String(def.profitTarget) : '';
+  });
   const [saving, setSaving] = useState(false);
 
   const firm = PROP_FIRMS[account.firm];
+  // Recompute firm default whenever plan changes so the hint stays accurate
+  const currentDefaultRules = getRules(account.firm, account.size, plan);
+  const defaultProfitTarget = currentDefaultRules?.profitTarget ?? null;
 
   const handleSave = async () => {
     setSaving(true);
@@ -42,6 +50,9 @@ export default function EditAccountModal({ account, onSave, onClose }) {
       consistencyOverride = parseFloat(consistencyChoice);
     }
 
+    const ptNum = parseFloat(profitTargetOverride);
+    const profitTargetOverrideVal = phase === 'funded' && !isNaN(ptNum) && ptNum > 0 ? ptNum : null;
+
     await onSave({
       phase,
       plan,
@@ -50,6 +61,7 @@ export default function EditAccountModal({ account, onSave, onClose }) {
       consistencyOverride,
       blown,
       status: phase === 'evaluation' && passed ? 'passed' : null,
+      profitTargetOverride: profitTargetOverrideVal,
     });
     setSaving(false);
     onClose();
@@ -130,6 +142,26 @@ export default function EditAccountModal({ account, onSave, onClose }) {
         {consistencyChoice === "" && (
           <div style={{ fontSize: 12, color: "var(--text3, #9ca3af)", background: "var(--surface2, #f9fafb)", borderRadius: 8, padding: "8px 12px", marginBottom: 14 }}>
             No consistency rule — the consistency gauge will be hidden for this account.
+          </div>
+        )}
+
+        {/* Profit Target override — funded only */}
+        {phase === 'funded' && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 14 }}>
+            <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text2, #6b7280)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Profit Target ($)</label>
+            <input
+              type="number"
+              value={profitTargetOverride}
+              onChange={e => setProfitTargetOverride(e.target.value)}
+              placeholder={defaultProfitTarget ? String(defaultProfitTarget) : 'e.g. 3000'}
+              min="1"
+              style={{ fontSize: 14, padding: "9px 12px", borderRadius: 8, border: "1px solid var(--border, #e5e7eb)", background: "var(--surface2, #f9fafb)", color: "var(--text, #111)", fontFamily: "inherit", width: "100%", outline: "none" }}
+            />
+            {defaultProfitTarget && (
+              <p style={{ fontSize: 11, color: "var(--text3, #9ca3af)", margin: "2px 0 0" }}>
+                Firm default: ${defaultProfitTarget.toLocaleString()}
+              </p>
+            )}
           </div>
         )}
 
