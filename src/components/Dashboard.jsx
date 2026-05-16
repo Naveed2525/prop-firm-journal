@@ -30,7 +30,8 @@ export default function Dashboard({ accounts, loading, onAddAccount, isDark, onT
     if (evalAccounts.length > 0) parts.push(`${evalAccounts.length} eval`);
     if (passedEvalAccounts.length > 0) parts.push(`${passedEvalAccounts.length} eval passed`);
     if (fundedAccounts.length > 0) parts.push(`${fundedAccounts.length} funded`);
-    if (blownAccounts.length > 0) parts.push(`${blownAccounts.length} blown`);
+    if (blownFunded.length > 0) parts.push(`${blownFunded.length} funded blown`);
+    if (blownEval.length > 0) parts.push(`${blownEval.length} eval blown`);
     return parts.join(' · ');
   })();
 
