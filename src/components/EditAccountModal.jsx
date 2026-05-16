@@ -1,6 +1,13 @@
 import { useState } from "react";
 import { PROP_FIRMS, getRules } from "../data/propFirms";
 
+const FIRM_PAYOUT_DEFAULTS = {
+  topstep:  { minWinningDays: 5, minProfitPerDay: 150, maxPayoutPct: 50, maxPayoutCap: 5000 },
+  mff:      { minWinningDays: 5, minProfitPerDay: 150, maxPayoutPct: 50, maxPayoutCap: 0 },
+  tradeify: { minWinningDays: 5, minProfitPerDay: 0,   maxPayoutPct: 50, maxPayoutCap: 0 },
+  lucid:    { minWinningDays: 5, minProfitPerDay: 100, maxPayoutPct: 50, maxPayoutCap: 0 },
+};
+
 const CONSISTENCY_OPTIONS = [
   { label: "None (no consistency rule)", value: "" },
   { label: "35%", value: "0.35" },
@@ -33,6 +40,12 @@ export default function EditAccountModal({ account, onSave, onClose }) {
     const def = getRules(account.firm, account.size, account.plan);
     return def?.profitTarget ? String(def.profitTarget) : '';
   });
+  const firmPayoutDefs = FIRM_PAYOUT_DEFAULTS[account.firm] ?? { minWinningDays: 5, minProfitPerDay: 0, maxPayoutPct: 50, maxPayoutCap: 0 };
+  const existingPR = account.payoutRules ?? {};
+  const [minWinningDays, setMinWinningDays] = useState(String(existingPR.minWinningDays ?? firmPayoutDefs.minWinningDays));
+  const [minProfitPerDay, setMinProfitPerDay] = useState(String(existingPR.minProfitPerDay ?? firmPayoutDefs.minProfitPerDay));
+  const [maxPayoutPct, setMaxPayoutPct] = useState(String(existingPR.maxPayoutPct ?? firmPayoutDefs.maxPayoutPct));
+  const [maxPayoutCap, setMaxPayoutCap] = useState(String(existingPR.maxPayoutCap ?? firmPayoutDefs.maxPayoutCap));
   const [saving, setSaving] = useState(false);
 
   const firm = PROP_FIRMS[account.firm];
@@ -53,6 +66,13 @@ export default function EditAccountModal({ account, onSave, onClose }) {
     const ptNum = parseFloat(profitTargetOverride);
     const profitTargetOverrideVal = phase === 'funded' && !isNaN(ptNum) && ptNum > 0 ? ptNum : null;
 
+    const payoutRules = phase === 'funded' ? {
+      minWinningDays: parseInt(minWinningDays) || 5,
+      minProfitPerDay: parseFloat(minProfitPerDay) || 0,
+      maxPayoutPct: parseFloat(maxPayoutPct) || 50,
+      maxPayoutCap: parseFloat(maxPayoutCap) || 0,
+    } : null;
+
     await onSave({
       phase,
       plan,
@@ -62,6 +82,7 @@ export default function EditAccountModal({ account, onSave, onClose }) {
       blown,
       status: phase === 'evaluation' && passed ? 'passed' : null,
       profitTargetOverride: profitTargetOverrideVal,
+      payoutRules,
     });
     setSaving(false);
     onClose();
@@ -163,6 +184,35 @@ export default function EditAccountModal({ account, onSave, onClose }) {
               </p>
             )}
           </div>
+        )}
+
+        {/* Payout Rules — funded only */}
+        {phase === 'funded' && (
+          <>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text2, #6b7280)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 10, marginTop: 4, paddingTop: 10, borderTop: "1px solid var(--border, #e5e7eb)" }}>
+              Payout Rules
+            </div>
+            {inp("Min. Winning Days Required", minWinningDays, setMinWinningDays, "number", "5")}
+            <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 14 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text2, #6b7280)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Min. Profit Per Winning Day ($)</label>
+              <input
+                type="number" value={minProfitPerDay} onChange={e => setMinProfitPerDay(e.target.value)}
+                placeholder="0" min="0"
+                style={{ fontSize: 14, padding: "9px 12px", borderRadius: 8, border: "1px solid var(--border, #e5e7eb)", background: "var(--surface2, #f9fafb)", color: "var(--text, #111)", fontFamily: "inherit", width: "100%", outline: "none" }}
+              />
+              <p style={{ fontSize: 11, color: "var(--text3, #9ca3af)", margin: "2px 0 0" }}>0 = any profitable day counts</p>
+            </div>
+            {inp("Max. Payout %", maxPayoutPct, setMaxPayoutPct, "number", "50")}
+            <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 14 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text2, #6b7280)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Max. Payout $ Cap</label>
+              <input
+                type="number" value={maxPayoutCap} onChange={e => setMaxPayoutCap(e.target.value)}
+                placeholder="0" min="0"
+                style={{ fontSize: 14, padding: "9px 12px", borderRadius: 8, border: "1px solid var(--border, #e5e7eb)", background: "var(--surface2, #f9fafb)", color: "var(--text, #111)", fontFamily: "inherit", width: "100%", outline: "none" }}
+              />
+              <p style={{ fontSize: 11, color: "var(--text3, #9ca3af)", margin: "2px 0 0" }}>0 = no cap</p>
+            </div>
+          </>
         )}
 
         {/* Label */}

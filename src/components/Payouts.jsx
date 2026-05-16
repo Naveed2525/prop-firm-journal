@@ -1,8 +1,6 @@
 import { useState } from 'react';
 import PayoutModal from './PayoutModal';
 
-const MIN_PAYOUT_AMOUNT = 100;
-
 function fmtDate(d) {
   if (!d) return '—';
   const [y, mo, day] = d.split('-').map(Number);
@@ -32,18 +30,33 @@ function CheckRow({ passed, label, detail }) {
   );
 }
 
-export default function Payouts({ m, rules, payouts, loading, addPayout, updatePayout, deletePayout }) {
+export default function Payouts({ m, rules, payouts, loading, addPayout, updatePayout, deletePayout, account }) {
   const [showModal, setShowModal] = useState(false);
 
-  // Use P&L since last payout for cycle-based checks
-  const cyclePnL = m.pnlSinceLastPayout ?? m.totalPnL;
+  // Resolve payout rules from account (set in EditAccountModal), with defaults
+  const pr = account?.payoutRules ?? {};
+  const minWinningDays = pr.minWinningDays ?? 5;
+  const minProfitPerDay = pr.minProfitPerDay ?? 0;
+  const maxPayoutPct = pr.maxPayoutPct ?? 50;
+  const maxPayoutCap = pr.maxPayoutCap ?? 0;
 
-  const minDays = rules?.minPayoutDays ?? 5;
-  const daysOk = m.dayCount >= minDays;
-  // null = consistency rule disabled for this account, so always passes
-  const consistencyOk = rules?.consistencyRule == null || m.totalPnL <= 0 || m.consistencyPct <= rules.consistencyRule;
-  const profitOk = cyclePnL >= MIN_PAYOUT_AMOUNT;
-  const allEligible = daysOk && consistencyOk && profitOk;
+  // P&L since last received payout (cycle-based)
+  const cyclePnL = m.pnlSinceLastPayout ?? m.totalPnL;
+  const lastPayoutDate = m.lastPayoutDate;
+
+  // Count winning days in the current cycle based on configured threshold
+  const winningDays = Object.entries(m.dailyPnls ?? {}).filter(([date, pnl]) => {
+    if (lastPayoutDate && date <= lastPayoutDate) return false;
+    return minProfitPerDay > 0 ? pnl >= minProfitPerDay : pnl > 0;
+  }).length;
+
+  const winningDaysOk = winningDays >= minWinningDays;
+  const profitOk = cyclePnL > 0;
+  const allEligible = winningDaysOk && profitOk;
+
+  // Eligible payout amount: maxPayoutPct of cycle P&L, capped by maxPayoutCap if set
+  const rawEligible = Math.max(cyclePnL * (maxPayoutPct / 100), 0);
+  const eligibleAmount = maxPayoutCap > 0 ? Math.min(rawEligible, maxPayoutCap) : rawEligible;
 
   const totalReceived = payouts.reduce((sum, p) =>
     p.status === 'received' ? sum + (Number(p.amountReceived) || 0) : sum, 0);
@@ -51,6 +64,8 @@ export default function Payouts({ m, rules, payouts, loading, addPayout, updateP
   const nextNumber = payouts.length > 0 ? Math.max(...payouts.map((p) => p.number)) + 1 : 1;
 
   const sorted = [...payouts].sort((a, b) => a.number - b.number);
+
+  const winDayDetail = `${winningDays} / ${minWinningDays} days${minProfitPerDay > 0 ? ` (+$${minProfitPerDay.toLocaleString()} min)` : ' (any profit)'}`;
 
   return (
     <>
@@ -81,23 +96,29 @@ export default function Payouts({ m, rules, payouts, loading, addPayout, updateP
               {allEligible ? '✓ Eligible' : '✗ Not Yet'}
             </span>
           </div>
+
           <CheckRow
-            passed={daysOk}
-            label={`Min. trading days (${minDays})`}
-            detail={`${m.dayCount} day${m.dayCount !== 1 ? 's' : ''} traded`}
-          />
-          <CheckRow
-            passed={consistencyOk}
-            label={`Consistency rule (<${((rules?.consistencyRule ?? 0.40) * 100).toFixed(0)}% per day)`}
-            detail={`Best day is ${(m.consistencyPct * 100).toFixed(0)}% of profit`}
+            passed={winningDaysOk}
+            label={`Winning days (${minWinningDays} required)`}
+            detail={winDayDetail}
           />
           <CheckRow
             passed={profitOk}
-            label={`Profit threshold ($${MIN_PAYOUT_AMOUNT} min)`}
-            detail={m.lastPayoutDate
+            label="Profitable since last payout"
+            detail={lastPayoutDate
               ? `Since last payout: ${fmtUSD(cyclePnL)}`
               : `Current P&L: ${fmtUSD(m.totalPnL)}`}
           />
+
+          {/* Eligible amount row */}
+          {profitOk && (
+            <div className="flex items-center justify-between pt-1 border-t border-gray-200 dark:border-gray-700 mt-1">
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                Eligible to withdraw ({maxPayoutPct}%{maxPayoutCap > 0 ? ` · $${maxPayoutCap.toLocaleString()} cap` : ''})
+              </span>
+              <span className="text-xs font-bold text-green-600 dark:text-green-400">{fmtUSD(eligibleAmount)}</span>
+            </div>
+          )}
         </div>
 
         {/* Payout History */}

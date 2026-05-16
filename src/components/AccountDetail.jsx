@@ -359,7 +359,7 @@ export default function AccountDetail({ accounts, onDeleteAccount, onUpdateAccou
         {/* Payouts — funded accounts only */}
         {account.phase === 'funded' && (
           <Payouts
-            m={m} rules={effectiveRules}
+            m={m} rules={effectiveRules} account={account}
             payouts={payouts} loading={payoutsLoading}
             addPayout={addPayout} updatePayout={updatePayout} deletePayout={deletePayout}
           />
