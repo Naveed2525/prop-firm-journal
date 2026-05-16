@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 
 const INSTRUMENTS = ['ES', 'NQ', 'MES', 'MNQ', 'YM', 'MYM', 'RTY', 'M2K', 'CL', 'MCL', 'GC', 'MGC', 'SI', 'NG', 'ZB', 'ZN', '6E', '6J', 'BTC'];
 
@@ -109,21 +109,43 @@ function formatTo12h(t) {
   return `${h12}:${mm}${ss} ${period}`;
 }
 
-export default function AddTradeModal({ onSave, onClose }) {
+export default function AddTradeModal({ onSave, onClose, initialTrade }) {
   const today = new Date().toISOString().slice(0, 10);
-  const [form, setForm] = useState({
-    date: today, instrument: 'ES', tradeName: '',
-    direction: 'Long',
-    entryTime: '', exitTime: '',
-    entry: '', exit: '', contracts: '1',
-    pnl: '', stopLoss: '', notes: '',
+  const isEditing = !!initialTrade;
+
+  const [form, setForm] = useState(() => {
+    if (initialTrade) {
+      return {
+        date: initialTrade.date?.slice(0, 10) ?? today,
+        instrument: initialTrade.instrument ?? 'ES',
+        tradeName: initialTrade.tradeName ?? '',
+        direction: initialTrade.direction ?? 'Long',
+        entryTime: initialTrade.entryTime ?? '',
+        exitTime: initialTrade.exitTime ?? '',
+        entry: initialTrade.entry != null ? String(initialTrade.entry) : '',
+        exit: initialTrade.exit != null ? String(initialTrade.exit) : '',
+        contracts: initialTrade.contracts != null ? String(initialTrade.contracts) : '1',
+        pnl: initialTrade.pnl != null ? String(initialTrade.pnl) : '',
+        stopLoss: initialTrade.stopLoss != null ? String(initialTrade.stopLoss) : '',
+        notes: initialTrade.notes ?? '',
+      };
+    }
+    return {
+      date: today, instrument: 'ES', tradeName: '',
+      direction: 'Long',
+      entryTime: '', exitTime: '',
+      entry: '', exit: '', contracts: '1',
+      pnl: '', stopLoss: '', notes: '',
+    };
   });
-  const [images, setImages] = useState([]);
+  const [images, setImages] = useState(() => initialTrade?.images ?? []);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
   const [autoPnl, setAutoPnl] = useState(null);
   const [duration, setDuration] = useState(null);
   const fileInputRef = useRef(null);
+  // When editing, don't overwrite the stored pnl on the first auto-calc run
+  const skipAutoOverwriteRef = useRef(isEditing);
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
   const handleTimeChange = (key) => (e) => setForm(f => ({ ...f, [key]: formatTimeInput(e.target.value) }));
@@ -149,9 +171,14 @@ export default function AddTradeModal({ onSave, onClose }) {
       const dirMult = form.direction === 'Short' ? -1 : 1;
       const pnl = parseFloat((rawTicks * tickValue * contracts * dirMult).toFixed(2));
       setAutoPnl(pnl);
-      setForm(f => ({ ...f, pnl: String(pnl) }));
+      if (skipAutoOverwriteRef.current) {
+        skipAutoOverwriteRef.current = false;
+      } else {
+        setForm(f => ({ ...f, pnl: String(pnl) }));
+      }
     } else {
       setAutoPnl(null);
+      skipAutoOverwriteRef.current = false;
     }
   }, [form.entry, form.exit, form.contracts, form.instrument, form.direction]);
 
@@ -203,7 +230,7 @@ export default function AddTradeModal({ onSave, onClose }) {
     <div className="fixed inset-0 z-50 bg-black/60 dark:bg-black/75 backdrop-blur-sm flex items-end">
       <div className="bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 rounded-t-3xl w-full p-6 overflow-y-auto" style={{ maxHeight: '92vh', paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom))' }}>
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white">Log Trade</h2>
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white">{isEditing ? 'Edit Trade' : 'Log Trade'}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-700 dark:hover:text-white w-8 h-8 flex items-center justify-center text-2xl leading-none rounded-full hover:bg-gray-100 dark:hover:bg-gray-800">&times;</button>
         </div>
 
@@ -358,7 +385,7 @@ export default function AddTradeModal({ onSave, onClose }) {
 
           <button type="submit" disabled={saving}
             className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-2xl py-4 font-semibold text-base transition-colors">
-            {saving ? 'Saving...' : 'Save Trade'}
+            {saving ? 'Saving…' : isEditing ? 'Update Trade' : 'Save Trade'}
           </button>
         </form>
       </div>

@@ -75,12 +75,21 @@ export function useTrades(accountId) {
     return trade;
   };
 
+  const updateTrade = async (id, body) => {
+    const updated = await apiFetch(`/api/trades?id=${id}&accountId=${accountId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    });
+    setTrades((prev) => prev.map((t) => (t.id === id ? updated : t)));
+    return updated;
+  };
+
   const deleteTrade = async (id) => {
     await apiFetch(`/api/trades?id=${id}&accountId=${accountId}`, { method: 'DELETE' });
     setTrades((prev) => prev.filter((t) => t.id !== id));
   };
 
-  return { trades, loading, addTrade, deleteTrade };
+  return { trades, loading, addTrade, updateTrade, deleteTrade };
 }
 
 export function usePayouts(accountId) {

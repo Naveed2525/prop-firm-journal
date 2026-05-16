@@ -16,7 +16,7 @@ import EditAccountModal from './EditAccountModal';
 export default function AccountDetail({ accounts, onDeleteAccount, onUpdateAccount, onAddAccount }) {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { trades, loading, addTrade, deleteTrade } = useTrades(id);
+  const { trades, loading, addTrade, updateTrade, deleteTrade } = useTrades(id);
   const { payouts, loading: payoutsLoading, addPayout, updatePayout, deletePayout } = usePayouts(id);
   const [showAddTrade, setShowAddTrade] = useState(false);
   const [showRules, setShowRules] = useState(false);
@@ -24,6 +24,7 @@ export default function AccountDetail({ accounts, onDeleteAccount, onUpdateAccou
   const [showCalculator, setShowCalculator] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [passingAccount, setPassingAccount] = useState(false);
+  const [editingTrade, setEditingTrade] = useState(null);
 
   const account = accounts.find((a) => a.id === id);
   if (!account) {
@@ -368,7 +369,7 @@ export default function AccountDetail({ accounts, onDeleteAccount, onUpdateAccou
           </h3>
           {loading
             ? <div className="text-center py-10 text-gray-400 dark:text-gray-500">Loading…</div>
-            : <TradeList trades={trades} onDelete={deleteTrade} account={account} />
+            : <TradeList trades={trades} onDelete={deleteTrade} onEdit={setEditingTrade} account={account} />
           }
         </div>
 
@@ -410,6 +411,16 @@ export default function AccountDetail({ accounts, onDeleteAccount, onUpdateAccou
 
       {showAddTrade && (
         <AddTradeModal onSave={addTrade} onClose={() => setShowAddTrade(false)} />
+      )}
+      {editingTrade && (
+        <AddTradeModal
+          initialTrade={editingTrade}
+          onSave={async (data) => {
+            await updateTrade(editingTrade.id, data);
+            setEditingTrade(null);
+          }}
+          onClose={() => setEditingTrade(null)}
+        />
       )}
 {showEdit && (
         <EditAccountModal

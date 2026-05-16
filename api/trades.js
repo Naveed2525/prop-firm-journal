@@ -4,7 +4,7 @@ function key(accountId) { return `pfj:trades:${accountId}`; }
 
 function cors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,DELETE,OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,DELETE,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 }
 
@@ -31,6 +31,20 @@ export default async function handler(req, res) {
       trades.push(trade);
       await rSet(redis, key(accountId), trades);
       return res.status(201).json(trade);
+    }
+
+    if (req.method === 'PATCH') {
+      const { id, accountId } = req.query;
+      if (!accountId) return res.status(400).json({ error: 'accountId required' });
+      if (!id) return res.status(400).json({ error: 'id required' });
+      const trades = (await rGet(redis, key(accountId))) ?? [];
+      const idx = trades.findIndex((t) => t.id === id);
+      if (idx === -1) return res.status(404).json({ error: 'Trade not found' });
+      // Preserve immutable fields; spread everything else from body
+      const { id: _i, accountId: _a, tradeNumber: _n, createdAt: _c, ...updates } = req.body;
+      trades[idx] = { ...trades[idx], ...updates, updatedAt: new Date().toISOString() };
+      await rSet(redis, key(accountId), trades);
+      return res.status(200).json(trades[idx]);
     }
 
     if (req.method === 'DELETE') {

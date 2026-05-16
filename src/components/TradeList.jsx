@@ -24,7 +24,7 @@ function getRValue(pnl, stopLoss) {
   return pnl / Math.abs(Number(stopLoss));
 }
 
-export default function TradeList({ trades = [], onDelete, account }) {
+export default function TradeList({ trades = [], onDelete, onEdit, account }) {
   const sorted = [...trades].sort((a, b) => b.date.localeCompare(a.date));
 
   if (sorted.length === 0) {
@@ -39,12 +39,12 @@ export default function TradeList({ trades = [], onDelete, account }) {
 
   return (
     <div className="space-y-2">
-      {sorted.map((t) => <TradeRow key={t.id} trade={t} onDelete={onDelete} account={account} />)}
+      {sorted.map((t) => <TradeRow key={t.id} trade={t} onDelete={onDelete} onEdit={onEdit} account={account} />)}
     </div>
   );
 }
 
-function TradeRow({ trade, onDelete, account }) {
+function TradeRow({ trade, onDelete, onEdit, account }) {
   const [confirming, setConfirming] = useState(false);
   const [lightboxIdx, setLightboxIdx] = useState(null);
 
@@ -172,13 +172,24 @@ function TradeRow({ trade, onDelete, account }) {
               </button>
             </div>
           ) : (
-            <button
-              onClick={() => setConfirming(true)}
-              className="text-gray-300 dark:text-gray-700 hover:text-red-500 dark:hover:text-red-400 text-xl leading-none transition-colors"
-              aria-label="Delete trade"
-            >
-              ×
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => onEdit(trade)}
+                className="text-gray-300 dark:text-gray-700 hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
+                aria-label="Edit trade"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+              </button>
+              <button
+                onClick={() => setConfirming(true)}
+                className="text-gray-300 dark:text-gray-700 hover:text-red-500 dark:hover:text-red-400 text-xl leading-none transition-colors"
+                aria-label="Delete trade"
+              >
+                ×
+              </button>
+            </div>
           )}
         </div>
       </div>
