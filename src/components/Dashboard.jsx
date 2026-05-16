@@ -8,6 +8,7 @@ export default function Dashboard({ accounts, loading, onAddAccount, isDark, onT
   const [showAdd, setShowAdd] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [showBlown, setShowBlown] = useState(false);
+  const [showPassed, setShowPassed] = useState(false);
   const navigate = useNavigate();
 
   const handleExport = async () => {
@@ -27,7 +28,7 @@ export default function Dashboard({ accounts, loading, onAddAccount, isDark, onT
     if (accounts.length === 0) return 'No accounts';
     const parts = [];
     if (evalAccounts.length > 0) parts.push(`${evalAccounts.length} eval`);
-    if (passedEvalAccounts.length > 0) parts.push(`${passedEvalAccounts.length} passed`);
+    if (passedEvalAccounts.length > 0) parts.push(`${passedEvalAccounts.length} eval passed`);
     if (fundedAccounts.length > 0) parts.push(`${fundedAccounts.length} funded`);
     if (blownAccounts.length > 0) parts.push(`${blownAccounts.length} blown`);
     return parts.join(' · ');
@@ -127,18 +128,6 @@ export default function Dashboard({ accounts, loading, onAddAccount, isDark, onT
               ))
             )}
 
-            {/* Passed Eval Accounts */}
-            {passedEvalAccounts.length > 0 && (
-              <div className="pt-3">
-                <SectionLabel title="Passed Eval Accounts" count={passedEvalAccounts.length} muted />
-                <div className="opacity-50 space-y-3 mt-1">
-                  {passedEvalAccounts.map((acc) => (
-                    <AccountCard key={acc.id} account={acc} onClick={() => navigate(`/account/${acc.id}`)} />
-                  ))}
-                </div>
-              </div>
-            )}
-
             {/* Funded Accounts */}
             <SectionLabel title="Funded Accounts" count={fundedAccounts.length} className="pt-3" />
             {fundedAccounts.length === 0 ? (
@@ -147,6 +136,30 @@ export default function Dashboard({ accounts, loading, onAddAccount, isDark, onT
               fundedAccounts.map((acc) => (
                 <AccountCard key={acc.id} account={acc} onClick={() => navigate(`/account/${acc.id}`)} />
               ))
+            )}
+
+            {/* Passed Eval toggle */}
+            {passedEvalAccounts.length > 0 && (
+              <div className="pt-4">
+                <button
+                  onClick={() => setShowPassed((v) => !v)}
+                  className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl border border-dashed border-gray-300 dark:border-gray-700 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:border-emerald-300 dark:hover:border-emerald-700 transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                  </svg>
+                  {showPassed ? 'Hide' : 'Show'} Passed Eval ({passedEvalAccounts.length})
+                </button>
+
+                {showPassed && (
+                  <div className="mt-3 space-y-3 opacity-60">
+                    <SectionLabel title="Passed Eval Accounts" count={passedEvalAccounts.length} className="pt-1" />
+                    {passedEvalAccounts.map((acc) => (
+                      <AccountCard key={acc.id} account={acc} onClick={() => navigate(`/account/${acc.id}`)} />
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
 
             {/* Blown Accounts toggle */}
