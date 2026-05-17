@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import AccountCard from './AccountCard';
 import AddAccountModal from './AddAccountModal';
 import ManageFirms from './ManageFirms';
+import ExpensesDashboard from './ExpensesDashboard';
 import { exportAllToCsv } from '../utils/exportCsv';
 
 export default function Dashboard({ accounts, loading, onAddAccount, isDark, onToggleTheme }) {
@@ -176,6 +177,11 @@ export default function Dashboard({ accounts, loading, onAddAccount, isDark, onT
                 )}
               </div>
             )}
+
+            {/* Expenses Dashboard */}
+            <div className="pt-3">
+              <ExpensesDashboard accounts={accounts} />
+            </div>
 
             {/* Blown Accounts toggle */}
             {blownAccounts.length > 0 && (

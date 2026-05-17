@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { getRules, getRulesFromFirms } from "../data/propFirms";
 import { useFirms } from "../context/FirmsContext";
+import CostSection from "./CostSection";
+import { initCosts, serializeCosts } from "../utils/costs";
 
 const FIRM_PAYOUT_DEFAULTS = {
   topstep:  { minWinningDays: 5, minProfitPerDay: 150, maxPayoutPct: 50, maxPayoutCap: 5000 },
@@ -48,6 +50,7 @@ export default function EditAccountModal({ account, onSave, onClose }) {
   const [minProfitPerDay, setMinProfitPerDay] = useState(String(existingPR.minProfitPerDay ?? firmPayoutDefs.minProfitPerDay));
   const [maxPayoutPct, setMaxPayoutPct] = useState(String(existingPR.maxPayoutPct ?? firmPayoutDefs.maxPayoutPct));
   const [maxPayoutCap, setMaxPayoutCap] = useState(String(existingPR.maxPayoutCap ?? firmPayoutDefs.maxPayoutCap));
+  const [costs, setCosts] = useState(() => initCosts(account.costs));
   const [saving, setSaving] = useState(false);
 
   const firm = firms[account.firm];
@@ -84,6 +87,7 @@ export default function EditAccountModal({ account, onSave, onClose }) {
       status: phase === 'evaluation' && passed ? 'passed' : null,
       profitTargetOverride: profitTargetOverrideVal,
       payoutRules,
+      costs: serializeCosts(costs),
     });
     setSaving(false);
     onClose();
@@ -252,6 +256,11 @@ export default function EditAccountModal({ account, onSave, onClose }) {
               <div style={{ position: "absolute", top: 2, left: blown ? 22 : 2, width: 20, height: 20, borderRadius: "50%", background: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,0.2)", transition: "left 0.2s" }} />
             </div>
           </div>
+        </div>
+
+        {/* Costs */}
+        <div style={{ marginBottom: 16 }}>
+          <CostSection costs={costs} onChange={setCosts} />
         </div>
 
         {/* Save */}

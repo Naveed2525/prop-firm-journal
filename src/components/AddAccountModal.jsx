@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { getRulesFromFirms } from '../data/propFirms';
 import { useFirms } from '../context/FirmsContext';
+import CostSection from './CostSection';
+import { initCosts, serializeCosts } from '../utils/costs';
 
 const CONSISTENCY_OPTIONS = [
   { key: 'default', label: 'Firm Default' },
@@ -25,6 +27,7 @@ export default function AddAccountModal({ onSave, onClose }) {
     consistencyKey: 'default',
     consistencyCustom: '',
   });
+  const [costs, setCosts] = useState(() => initCosts(null));
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
 
@@ -69,7 +72,7 @@ export default function AddAccountModal({ onSave, onClose }) {
       }
 
       const { consistencyKey, consistencyCustom, ...rest } = form;
-      await onSave({ ...rest, size: Number(rest.size), consistencyOverride });
+      await onSave({ ...rest, size: Number(rest.size), consistencyOverride, costs: serializeCosts(costs) });
       onClose();
     } catch (ex) {
       setErr(ex.message);
@@ -221,6 +224,9 @@ export default function AddAccountModal({ onSave, onClose }) {
               {firm.notes}
             </div>
           )}
+
+          {/* Costs */}
+          <CostSection costs={costs} onChange={setCosts} />
 
           {err && <p className="text-red-600 dark:text-red-400 text-sm">{err}</p>}
 
