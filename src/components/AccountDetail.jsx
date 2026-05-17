@@ -359,7 +359,6 @@ export default function AccountDetail({ accounts, onDeleteAccount, onUpdateAccou
           if (!costs) return null;
           const totalCost = computeTotalCost(costs);
           if (totalCost === 0) return null;
-          const netPnL = m.totalPnL - totalCost;
           const rows = [];
           if (Number(costs.evalFee) > 0) rows.push({ label: 'Eval Fee', amount: Number(costs.evalFee) });
           if (Number(costs.platformFee) > 0 && Number(costs.platformFeeMonths) > 0)
@@ -381,22 +380,10 @@ export default function AccountDetail({ accounts, onDeleteAccount, onUpdateAccou
                     <span className="text-red-600 dark:text-red-400 font-medium">−${r.amount.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
                   </div>
                 ))}
-                <div className="border-t border-gray-100 dark:border-gray-800 pt-2 mt-2 space-y-1.5">
+                <div className="border-t border-gray-100 dark:border-gray-800 pt-2 mt-2">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-500 dark:text-gray-400">Total Spent</span>
+                    <span className="font-semibold text-gray-700 dark:text-gray-300">Total Spent</span>
                     <span className="text-red-600 dark:text-red-400 font-semibold">−${totalCost.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-500 dark:text-gray-400">Gross P&amp;L</span>
-                    <span className={m.totalPnL >= 0 ? 'text-green-600 dark:text-green-400 font-medium' : 'text-red-600 dark:text-red-400 font-medium'}>
-                      {m.totalPnL >= 0 ? '+' : ''}${m.totalPnL.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="font-semibold text-gray-700 dark:text-gray-300">Net Profit</span>
-                    <span className={`font-bold ${netPnL >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                      {netPnL >= 0 ? '+' : ''}${netPnL.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                    </span>
                   </div>
                 </div>
               </div>

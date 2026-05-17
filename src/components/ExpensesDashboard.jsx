@@ -25,7 +25,6 @@ export default function ExpensesDashboard({ accounts }) {
 
   const totalSpent = accounts.reduce((s, a) => s + computeTotalCost(a.costs), 0);
   const totalPayouts = payoutEvents.reduce((s, e) => s + e.amount, 0);
-  const netProfit = totalPayouts - totalSpent;
 
   // Per-firm breakdown
   const byFirm = {};
@@ -75,24 +74,21 @@ export default function ExpensesDashboard({ accounts }) {
 
       {open && (
         <div className="px-4 pb-5 pt-1 border-t border-gray-100 dark:border-gray-800 space-y-5">
-          {/* Summary tiles */}
-          <div className="grid grid-cols-3 gap-2 pt-1">
-            <SummaryTile
-              label="Total Spent"
-              value={`−$${totalSpent.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
-              color="text-red-600 dark:text-red-400"
-            />
-            <SummaryTile
-              label="Payouts"
-              value={`+$${totalPayouts.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
-              color="text-green-600 dark:text-green-400"
-            />
-            <SummaryTile
-              label="Net"
-              value={`${netProfit >= 0 ? '+' : ''}$${netProfit.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
-              color={netProfit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}
-              bold
-            />
+          {/* Business overview tiles */}
+          <div>
+            <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-2 pt-1">Business Overview</p>
+            <div className="grid grid-cols-2 gap-2">
+              <SummaryTile
+                label="Total Spent"
+                value={`−$${totalSpent.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+                color="text-red-600 dark:text-red-400"
+              />
+              <SummaryTile
+                label="Total Payouts"
+                value={`+$${totalPayouts.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+                color="text-green-600 dark:text-green-400"
+              />
+            </div>
           </div>
 
           {/* By firm */}
@@ -105,14 +101,11 @@ export default function ExpensesDashboard({ accounts }) {
                     <span className="font-medium" style={{ color: f.color }}>{f.name}</span>
                     <div className="flex items-center gap-3 text-xs">
                       {f.cost > 0 && (
-                        <span className="text-red-600 dark:text-red-400">−${f.cost.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                        <span className="text-red-600 dark:text-red-400">−${f.cost.toLocaleString(undefined, { maximumFractionDigits: 0 })} spent</span>
                       )}
                       {f.payouts > 0 && (
-                        <span className="text-green-600 dark:text-green-400">+${f.payouts.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                        <span className="text-green-600 dark:text-green-400">+${f.payouts.toLocaleString(undefined, { maximumFractionDigits: 0 })} paid out</span>
                       )}
-                      <span className={`font-semibold ${f.payouts - f.cost >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                        {f.payouts - f.cost >= 0 ? '+' : ''}${(f.payouts - f.cost).toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                      </span>
                     </div>
                   </div>
                 ))}
@@ -163,11 +156,11 @@ export default function ExpensesDashboard({ accounts }) {
   );
 }
 
-function SummaryTile({ label, value, color, bold = false }) {
+function SummaryTile({ label, value, color }) {
   return (
     <div className="bg-gray-50 dark:bg-gray-800/60 rounded-xl px-3 py-2.5">
       <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">{label}</p>
-      <p className={`text-sm ${bold ? 'font-bold' : 'font-semibold'} ${color}`}>{value}</p>
+      <p className={`text-sm font-semibold ${color}`}>{value}</p>
     </div>
   );
 }

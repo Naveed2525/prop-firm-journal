@@ -1,7 +1,6 @@
 import { getRulesFromFirms } from '../data/propFirms';
 import { useFirms } from '../context/FirmsContext';
 import { computeMetrics, getAlerts } from '../utils/metrics';
-import { computeTotalCost } from '../utils/costs';
 import { useTrades } from '../hooks/useData';
 import ProgressBar from './ProgressBar';
 
@@ -185,21 +184,6 @@ export default function AccountCard({ account, onClick }) {
         </div>
       )}
 
-      {/* Cost strip */}
-      {(() => {
-        const totalCost = computeTotalCost(account.costs);
-        if (totalCost === 0) return null;
-        const netPnL = m.totalPnL - totalCost;
-        return (
-          <div className="mt-2 flex items-center gap-3 text-xs text-gray-400 dark:text-gray-500 border-t border-gray-100 dark:border-gray-800 pt-2">
-            <span>Spent <span className="text-red-500 dark:text-red-400 font-medium">−${totalCost.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></span>
-            <span className="text-gray-200 dark:text-gray-700">·</span>
-            <span>Net <span className={`font-medium ${netPnL >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-              {netPnL >= 0 ? '+' : ''}${netPnL.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-            </span></span>
-          </div>
-        );
-      })()}
     </button>
   );
 }
