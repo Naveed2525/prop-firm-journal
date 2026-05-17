@@ -30,9 +30,9 @@ export default function Dashboard({ accounts, loading, onAddAccount, isDark, onT
   const headerSummary = (() => {
     if (accounts.length === 0) return 'No accounts';
     const parts = [];
-    if (evalAccounts.length > 0) parts.push(`${evalAccounts.length} Eval`);
+    parts.push(`${evalAccounts.length} Eval`);
     if (passedEvalAccounts.length > 0) parts.push(`${passedEvalAccounts.length} Eval Passed`);
-    if (fundedAccounts.length > 0) parts.push(`${fundedAccounts.length} Funded`);
+    parts.push(`${fundedAccounts.length} Funded`);
     if (blownFunded.length > 0) parts.push(`${blownFunded.length} Funded Blown`);
     if (blownEval.length > 0) parts.push(`${blownEval.length} Eval Blown`);
     return parts.join(' · ');
