@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { PROP_FIRMS, getRules } from '../data/propFirms';
+import { getRulesFromFirms } from '../data/propFirms';
+import { useFirms } from '../context/FirmsContext';
 
-const FIRM_KEYS = Object.keys(PROP_FIRMS);
 const CONSISTENCY_OPTIONS = [
   { key: 'default', label: 'Firm Default' },
   { key: 'none',    label: 'None' },
@@ -12,10 +12,13 @@ const CONSISTENCY_OPTIONS = [
 ];
 
 export default function AddAccountModal({ onSave, onClose }) {
+  const { firms } = useFirms();
+  const firmKeys = Object.keys(firms);
+
   const [form, setForm] = useState({
-    firm: FIRM_KEYS[0],
-    size: PROP_FIRMS[FIRM_KEYS[0]].sizes[0],
-    plan: PROP_FIRMS[FIRM_KEYS[0]].plans[0]?.id ?? '',
+    firm: 'topstep',
+    size: 50000,
+    plan: 'standard',
     phase: 'evaluation',
     label: '',
     startDate: new Date().toISOString().slice(0, 10),
@@ -25,12 +28,13 @@ export default function AddAccountModal({ onSave, onClose }) {
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
 
-  const firm = PROP_FIRMS[form.firm];
-  const firmRules = getRules(form.firm, Number(form.size), form.plan);
+  const firm = firms[form.firm] ?? firms[firmKeys[0]];
+  const firmRules = getRulesFromFirms(firms, form.firm, Number(form.size), form.plan);
   const firmDefaultPct = firmRules ? (firmRules.consistencyRule * 100).toFixed(0) : '40';
 
   const pickFirm = (key) => {
-    const f = PROP_FIRMS[key];
+    const f = firms[key];
+    if (!f) return;
     setForm((prev) => ({
       ...prev,
       firm: key,
@@ -45,7 +49,6 @@ export default function AddAccountModal({ onSave, onClose }) {
     e.preventDefault();
     setErr('');
 
-    // Validate custom value
     if (form.consistencyKey === 'custom') {
       const v = parseFloat(form.consistencyCustom);
       if (isNaN(v) || v <= 0 || v > 100) {
@@ -56,7 +59,6 @@ export default function AddAccountModal({ onSave, onClose }) {
 
     setSaving(true);
     try {
-      // Resolve consistencyOverride to null | 0 | decimal
       let consistencyOverride = null;
       if (form.consistencyKey === 'none') {
         consistencyOverride = 0;
@@ -93,8 +95,8 @@ export default function AddAccountModal({ onSave, onClose }) {
           <div>
             <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mb-2">Prop Firm</p>
             <div className="grid grid-cols-2 gap-2">
-              {FIRM_KEYS.map((key) => {
-                const f = PROP_FIRMS[key];
+              {firmKeys.map((key) => {
+                const f = firms[key];
                 const active = form.firm === key;
                 return (
                   <button
@@ -106,8 +108,10 @@ export default function AddAccountModal({ onSave, onClose }) {
                     }`}
                     style={{ borderColor: active ? f.color : undefined }}
                   >
-                    <span style={{ color: active ? f.color : undefined }}
-                      className={active ? '' : 'text-gray-500 dark:text-gray-400'}>
+                    <span
+                      style={{ color: active ? f.color : undefined }}
+                      className={`truncate block ${active ? '' : 'text-gray-500 dark:text-gray-400'}`}
+                    >
                       {f.name}
                     </span>
                   </button>
@@ -117,19 +121,21 @@ export default function AddAccountModal({ onSave, onClose }) {
           </div>
 
           {/* Size */}
-          <div>
-            <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mb-2">Account Size</p>
-            <div className="flex flex-wrap gap-2">
-              {firm.sizes.map((s) => (
-                <Chip key={s} active={form.size === s} onClick={() => setForm((f) => ({ ...f, size: s }))}>
-                  ${(s / 1000).toFixed(0)}K
-                </Chip>
-              ))}
+          {firm && (
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mb-2">Account Size</p>
+              <div className="flex flex-wrap gap-2">
+                {firm.sizes.map((s) => (
+                  <Chip key={s} active={form.size === s} onClick={() => setForm((f) => ({ ...f, size: s }))}>
+                    ${(s / 1000).toFixed(0)}K
+                  </Chip>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Plan */}
-          {firm.plans.length > 1 && (
+          {firm && firm.plans.length > 1 && (
             <div>
               <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mb-2">Plan</p>
               <div className="flex flex-wrap gap-2">
@@ -210,7 +216,7 @@ export default function AddAccountModal({ onSave, onClose }) {
           </div>
 
           {/* Firm notes */}
-          {firm.notes && (
+          {firm?.notes && (
             <div className="bg-gray-100 dark:bg-gray-800/60 rounded-xl px-3 py-2.5 text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
               {firm.notes}
             </div>

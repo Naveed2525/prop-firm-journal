@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { useAccounts } from './hooks/useData';
 import { useTheme } from './hooks/useTheme';
+import { FirmsProvider } from './context/FirmsContext';
 import Dashboard from './components/Dashboard';
 import AccountDetail from './components/AccountDetail';
 
@@ -9,6 +10,7 @@ export default function App() {
   const { isDark, toggle } = useTheme();
 
   return (
+    <FirmsProvider>
     <BrowserRouter>
       <Routes>
         <Route
@@ -29,5 +31,6 @@ export default function App() {
         />
       </Routes>
     </BrowserRouter>
+    </FirmsProvider>
   );
 }

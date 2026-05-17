@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { PROP_FIRMS, getRules } from '../data/propFirms';
+import { getRulesFromFirms } from '../data/propFirms';
+import { useFirms } from '../context/FirmsContext';
 import { computeMetrics, getAlerts } from '../utils/metrics';
 import { useTrades, usePayouts } from '../hooks/useData';
 import AlertBanner from './AlertBanner';
@@ -38,8 +39,9 @@ export default function AccountDetail({ accounts, onDeleteAccount, onUpdateAccou
     );
   }
 
-  const firm  = PROP_FIRMS[account.firm];
-  const rules = getRules(account.firm, account.size, account.plan);
+  const { firms } = useFirms();
+  const firm  = firms[account.firm];
+  const rules = getRulesFromFirms(firms, account.firm, account.size, account.plan);
   // Apply per-account overrides: consistency (null=default, 0=off, >0=custom), then profit target
   const effectiveRules = applyProfitTargetOverride(
     applyConsistencyOverride(rules, account.consistencyOverride),

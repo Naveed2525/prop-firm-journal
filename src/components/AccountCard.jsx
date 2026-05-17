@@ -1,4 +1,5 @@
-import { PROP_FIRMS, getRules } from '../data/propFirms';
+import { getRulesFromFirms } from '../data/propFirms';
+import { useFirms } from '../context/FirmsContext';
 import { computeMetrics, getAlerts } from '../utils/metrics';
 import { useTrades } from '../hooks/useData';
 import ProgressBar from './ProgressBar';
@@ -9,10 +10,11 @@ function applyConsistencyOverride(rules, override) {
 }
 
 export default function AccountCard({ account, onClick }) {
+  const { firms } = useFirms();
   const { trades, loading } = useTrades(account.id);
 
-  const firm  = PROP_FIRMS[account.firm];
-  const rules = getRules(account.firm, account.size, account.plan);
+  const firm  = firms[account.firm];
+  const rules = getRulesFromFirms(firms, account.firm, account.size, account.plan);
   const effectiveRules = applyConsistencyOverride(rules, account.consistencyOverride);
   const m = computeMetrics(trades);
   const alerts = getAlerts(m, effectiveRules);

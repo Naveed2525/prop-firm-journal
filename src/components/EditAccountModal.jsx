@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { PROP_FIRMS, getRules } from "../data/propFirms";
+import { getRules, getRulesFromFirms } from "../data/propFirms";
+import { useFirms } from "../context/FirmsContext";
 
 const FIRM_PAYOUT_DEFAULTS = {
   topstep:  { minWinningDays: 5, minProfitPerDay: 150, maxPayoutPct: 50, maxPayoutCap: 5000 },
@@ -40,6 +41,7 @@ export default function EditAccountModal({ account, onSave, onClose }) {
     const def = getRules(account.firm, account.size, account.plan);
     return def?.profitTarget ? String(def.profitTarget) : '';
   });
+  const { firms } = useFirms();
   const firmPayoutDefs = FIRM_PAYOUT_DEFAULTS[account.firm] ?? { minWinningDays: 5, minProfitPerDay: 0, maxPayoutPct: 50, maxPayoutCap: 0 };
   const existingPR = account.payoutRules ?? {};
   const [minWinningDays, setMinWinningDays] = useState(String(existingPR.minWinningDays ?? firmPayoutDefs.minWinningDays));
@@ -48,9 +50,8 @@ export default function EditAccountModal({ account, onSave, onClose }) {
   const [maxPayoutCap, setMaxPayoutCap] = useState(String(existingPR.maxPayoutCap ?? firmPayoutDefs.maxPayoutCap));
   const [saving, setSaving] = useState(false);
 
-  const firm = PROP_FIRMS[account.firm];
-  // Recompute firm default whenever plan changes so the hint stays accurate
-  const currentDefaultRules = getRules(account.firm, account.size, plan);
+  const firm = firms[account.firm];
+  const currentDefaultRules = getRulesFromFirms(firms, account.firm, account.size, plan);
   const defaultProfitTarget = currentDefaultRules?.profitTarget ?? null;
 
   const handleSave = async () => {

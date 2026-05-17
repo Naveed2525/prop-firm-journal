@@ -116,3 +116,62 @@ export function getAccountCode(account) {
   const sizeK = (account?.size ?? 0) >= 1000 ? `${account.size / 1000}K` : String(account?.size ?? '');
   return `${shortName}${planCode}${sizeK}`;
 }
+
+export const BUILTIN_FIRM_KEYS = Object.keys(PROP_FIRMS);
+
+export function generateAccountRules(size) {
+  const known = {
+    25000:  { profitTarget: 1500, maxDrawdown: 1500, dailyLossLimit: 500,  consistencyRule: 0.40, hasDLL: true },
+    50000:  { profitTarget: 3000, maxDrawdown: 2000, dailyLossLimit: 1000, consistencyRule: 0.40, hasDLL: true },
+    100000: { profitTarget: 6000, maxDrawdown: 3000, dailyLossLimit: 2000, consistencyRule: 0.40, hasDLL: true },
+    150000: { profitTarget: 9000, maxDrawdown: 4500, dailyLossLimit: 3000, consistencyRule: 0.40, hasDLL: true },
+  };
+  return known[size] ?? {
+    profitTarget: Math.round(size * 0.06),
+    maxDrawdown: Math.round(size * 0.04),
+    dailyLossLimit: Math.round(size * 0.02),
+    consistencyRule: 0.40,
+    hasDLL: true,
+  };
+}
+
+export function buildMergedFirms(customFirms = [], overrides = {}) {
+  const merged = {};
+  for (const key of BUILTIN_FIRM_KEYS) {
+    const firm = PROP_FIRMS[key];
+    const override = overrides[key] ?? {};
+    const sizes = override.sizes ?? firm.sizes;
+    const plans = override.plans ?? firm.plans;
+    const accounts = { ...firm.accounts };
+    for (const size of sizes) {
+      if (!accounts[size]) accounts[size] = generateAccountRules(size);
+    }
+    merged[key] = { ...firm, sizes, plans, accounts };
+  }
+  for (const firm of customFirms) {
+    const accounts = {};
+    for (const size of firm.sizes) {
+      accounts[size] = generateAccountRules(size);
+    }
+    merged[firm.key] = { ...firm, accounts };
+  }
+  return merged;
+}
+
+export function getRulesFromFirms(firms, firmKey, size, planId) {
+  const firm = firms?.[firmKey];
+  if (!firm) return null;
+  const base = firm.accounts?.[size];
+  if (!base) return null;
+  const plan = firm.plans?.find((p) => p.id === planId);
+  return {
+    ...base,
+    hasDLL: plan?.hasDLL ?? base.hasDLL,
+    split: plan?.split ?? firm.split,
+    firmName: firm.name,
+    firmColor: firm.color,
+    planName: plan?.name ?? 'Standard',
+    notes: firm.notes ?? '',
+    minPayoutDays: firm.minPayoutDays ?? 5,
+  };
+}
