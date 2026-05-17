@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useFirms } from '../context/FirmsContext';
-import { computeTotalCost, periodKey, periodLabel } from '../utils/costs';
+import { computeTotalCost, getCostEvents, periodKey, periodLabel } from '../utils/costs';
 
 async function apiFetch(url, opts = {}) {
   const res = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...opts });
@@ -8,7 +8,7 @@ async function apiFetch(url, opts = {}) {
   return res.json();
 }
 
-const PERIODS = ['monthly', 'yearly'];
+const PERIODS = ['daily', 'weekly', 'monthly', 'yearly'];
 
 export default function ExpensesDashboard({ accounts }) {
   const { firms } = useFirms();
@@ -26,6 +26,18 @@ export default function ExpensesDashboard({ accounts }) {
   const totalSpent = accounts.reduce((s, a) => s + computeTotalCost(a.costs), 0);
   const totalPayouts = payoutEvents.reduce((s, e) => s + e.amount, 0);
 
+  // All dated cost events across every account
+  const allCostEvents = useMemo(() => {
+    const events = [];
+    for (const acc of accounts) {
+      const startDate = acc.startDate ?? acc.createdAt?.slice(0, 10);
+      for (const ev of getCostEvents(acc.costs, startDate)) {
+        events.push({ ...ev, firm: acc.firm });
+      }
+    }
+    return events;
+  }, [accounts]);
+
   // Per-firm breakdown
   const byFirm = {};
   for (const acc of accounts) {
@@ -38,16 +50,35 @@ export default function ExpensesDashboard({ accounts }) {
     byFirm[ev.firm].payouts += ev.amount;
   }
 
+  // Per-period spending (from dated cost events)
+  const spendByPeriod = {};
+  for (const ev of allCostEvents) {
+    const key = periodKey(ev.date, period);
+    spendByPeriod[key] = (spendByPeriod[key] ?? 0) + ev.amount;
+  }
+  const spendRows = Object.entries(spendByPeriod).sort((a, b) => b[0].localeCompare(a[0])).slice(0, 12);
+
   // Per-period payouts
-  const byPeriod = {};
+  const payoutByPeriod = {};
   for (const ev of payoutEvents) {
     const key = periodKey(ev.date, period);
-    if (!byPeriod[key]) byPeriod[key] = 0;
-    byPeriod[key] += ev.amount;
+    payoutByPeriod[key] = (payoutByPeriod[key] ?? 0) + ev.amount;
   }
-  const periodRows = Object.entries(byPeriod).sort((a, b) => b[0].localeCompare(a[0])).slice(0, 12);
+  const payoutRows = Object.entries(payoutByPeriod).sort((a, b) => b[0].localeCompare(a[0])).slice(0, 12);
 
-  if (totalSpent === 0 && payoutEvents.length === 0 && !open) return null;
+  // Combined cashflow — union of all period keys with both figures
+  const allPeriodKeys = new Set([...Object.keys(spendByPeriod), ...Object.keys(payoutByPeriod)]);
+  const cashflowRows = [...allPeriodKeys]
+    .sort((a, b) => b.localeCompare(a))
+    .slice(0, 12)
+    .map((key) => ({ key, spent: spendByPeriod[key] ?? 0, payouts: payoutByPeriod[key] ?? 0 }));
+
+  const hasCostEvents = allCostEvents.length > 0;
+  const hasPayoutEvents = payoutEvents.length > 0;
+  const showCashflow = hasCostEvents && hasPayoutEvents;
+  const showPeriodSection = hasCostEvents || hasPayoutEvents;
+
+  if (totalSpent === 0 && !hasPayoutEvents && !open) return null;
 
   return (
     <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl overflow-hidden shadow-sm dark:shadow-none">
@@ -74,7 +105,8 @@ export default function ExpensesDashboard({ accounts }) {
 
       {open && (
         <div className="px-4 pb-5 pt-1 border-t border-gray-100 dark:border-gray-800 space-y-5">
-          {/* Business overview tiles */}
+
+          {/* Business Overview */}
           <div>
             <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-2 pt-1">Business Overview</p>
             <div className="grid grid-cols-2 gap-2">
@@ -91,7 +123,7 @@ export default function ExpensesDashboard({ accounts }) {
             </div>
           </div>
 
-          {/* By firm */}
+          {/* By Firm */}
           {Object.keys(byFirm).length > 0 && (
             <div>
               <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-2">By Firm</p>
@@ -113,11 +145,11 @@ export default function ExpensesDashboard({ accounts }) {
             </div>
           )}
 
-          {/* Payouts by period */}
-          {payoutEvents.length > 0 && (
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide">Payouts by Period</p>
+          {/* Period sections — shared toggle */}
+          {showPeriodSection && (
+            <>
+              <div className="flex items-center justify-between border-t border-gray-100 dark:border-gray-800 pt-4">
+                <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide">Period View</p>
                 <div className="flex gap-1">
                   {PERIODS.map((p) => (
                     <button
@@ -134,22 +166,77 @@ export default function ExpensesDashboard({ accounts }) {
                   ))}
                 </div>
               </div>
-              {periodRows.length === 0 ? (
-                <p className="text-xs text-gray-400 dark:text-gray-500 py-1">No payouts</p>
-              ) : (
-                <div className="space-y-1.5">
-                  {periodRows.map(([key, amt]) => (
-                    <div key={key} className="flex items-center justify-between text-sm">
-                      <span className="text-gray-500 dark:text-gray-400">{periodLabel(key, period)}</span>
-                      <span className="font-medium text-green-600 dark:text-green-400">
-                        +${amt.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                      </span>
+
+              {/* Payouts by Period */}
+              {hasPayoutEvents && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-2">Payouts by Period</p>
+                  {payoutRows.length === 0 ? (
+                    <p className="text-xs text-gray-400 dark:text-gray-500 py-1">No payouts</p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {payoutRows.map(([key, amt]) => (
+                        <div key={key} className="flex items-center justify-between text-sm">
+                          <span className="text-gray-500 dark:text-gray-400">{periodLabel(key, period)}</span>
+                          <span className="font-medium text-green-600 dark:text-green-400">
+                            +${amt.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                          </span>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
                 </div>
               )}
-            </div>
+
+              {/* Spending by Period */}
+              {hasCostEvents && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-2">Spending by Period</p>
+                  {spendRows.length === 0 ? (
+                    <p className="text-xs text-gray-400 dark:text-gray-500 py-1">No dated costs</p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {spendRows.map(([key, amt]) => (
+                        <div key={key} className="flex items-center justify-between text-sm">
+                          <span className="text-gray-500 dark:text-gray-400">{periodLabel(key, period)}</span>
+                          <span className="font-medium text-red-600 dark:text-red-400">
+                            −${amt.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Cashflow by Period — spending and payouts side by side */}
+              {showCashflow && cashflowRows.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-2">Cashflow by Period</p>
+                  <div className="space-y-1.5">
+                    {cashflowRows.map(({ key, spent, payouts }) => (
+                      <div key={key} className="flex items-center justify-between text-sm gap-2">
+                        <span className="text-gray-500 dark:text-gray-400 w-20 flex-shrink-0">{periodLabel(key, period)}</span>
+                        <div className="flex items-center gap-3 text-xs ml-auto">
+                          {spent > 0 && (
+                            <span className="text-red-600 dark:text-red-400">
+                              −${spent.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                            </span>
+                          )}
+                          {payouts > 0 && (
+                            <span className="text-green-600 dark:text-green-400">
+                              +${payouts.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
           )}
+
         </div>
       )}
     </div>
