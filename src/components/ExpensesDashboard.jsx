@@ -8,7 +8,7 @@ async function apiFetch(url, opts = {}) {
   return res.json();
 }
 
-const PERIODS = ['daily', 'weekly', 'monthly', 'yearly'];
+const PERIODS = ['monthly', 'yearly'];
 
 export default function ExpensesDashboard({ accounts }) {
   const { firms } = useFirms();
