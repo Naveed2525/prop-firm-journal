@@ -256,6 +256,26 @@ export default function EditAccountModal({ account, onSave, onClose }) {
           </div>
         )}
 
+        {/* Create Funded Account — shown when eval is already passed */}
+        {phase === 'evaluation' && account.status === 'passed' && (
+          <button
+            onClick={async () => {
+              setSaving(true);
+              setSaveError('');
+              try {
+                await onSave({ _createFundedAccount: true });
+              } catch (e) {
+                setSaveError(e?.message ?? 'Something went wrong. Please try again.');
+                setSaving(false);
+              }
+            }}
+            disabled={saving}
+            style={{ width: "100%", padding: "11px", background: saving ? "#9ca3af" : "#059669", color: "#fff", border: "none", borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: saving ? "default" : "pointer", marginBottom: 12 }}
+          >
+            {saving ? "Creating funded account…" : "Create Funded Account"}
+          </button>
+        )}
+
         {/* Mark as Blown toggle */}
         <div style={{ marginBottom: 20, padding: "12px 14px", borderRadius: 10, border: blown ? "1px solid #fca5a5" : "1px solid var(--border, #e5e7eb)", background: blown ? "#fef2f2" : "var(--surface2, #f9fafb)" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }} onClick={() => setBlown(b => !b)}>
