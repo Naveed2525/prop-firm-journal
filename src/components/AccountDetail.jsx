@@ -26,6 +26,7 @@ export default function AccountDetail({ accounts, onDeleteAccount, onUpdateAccou
   const [showCalculator, setShowCalculator] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [passingAccount, setPassingAccount] = useState(false);
+  const [passingError, setPassingError] = useState('');
   const [editingTrade, setEditingTrade] = useState(null);
 
   const account = accounts.find((a) => a.id === id);
@@ -67,8 +68,9 @@ export default function AccountDetail({ accounts, onDeleteAccount, onUpdateAccou
 
   const handlePassAndOpenFunded = async () => {
     setPassingAccount(true);
+    setPassingError('');
     try {
-      await onUpdateAccount(id, { status: 'passed' });
+      // Create the funded account first so a failure here leaves the eval untouched and retryable
       const newAccount = await onAddAccount({
         firm: account.firm,
         size: account.size,
@@ -77,8 +79,11 @@ export default function AccountDetail({ accounts, onDeleteAccount, onUpdateAccou
         label: account.label || '',
         startDate: new Date().toISOString().slice(0, 10),
       });
+      if (!newAccount?.id) throw new Error('Server returned no account ID — please try again.');
+      await onUpdateAccount(id, { status: 'passed' });
       navigate(`/account/${newAccount.id}`);
-    } catch {
+    } catch (e) {
+      setPassingError(e?.message ?? 'Something went wrong. Please try again.');
       setPassingAccount(false);
     }
   };
@@ -209,6 +214,9 @@ export default function AccountDetail({ accounts, onDeleteAccount, onUpdateAccou
             >
               {passingAccount ? 'Creating funded account…' : 'Mark as Passed & Open Funded Account'}
             </button>
+            {passingError && (
+              <p className="text-xs text-red-600 dark:text-red-400 mt-2 font-medium">{passingError}</p>
+            )}
           </div>
         )}
 
