@@ -1,8 +1,15 @@
 import { useState } from 'react';
 
-export default function PayoutModal({ payoutNumber, onSave, onClose }) {
+export default function PayoutModal({ payoutNumber, onSave, onClose, initialData }) {
   const today = new Date().toISOString().split('T')[0];
-  const [form, setForm] = useState({
+  const [form, setForm] = useState(() => initialData ? {
+    date: initialData.date ?? today,
+    amountRequested: initialData.amountRequested !== undefined ? String(initialData.amountRequested) : '',
+    amountReceived: initialData.amountReceived !== undefined ? String(initialData.amountReceived) : '',
+    balanceAfter: initialData.balanceAfter !== undefined ? String(initialData.balanceAfter) : '',
+    notes: initialData.notes ?? '',
+    status: initialData.status ?? 'pending',
+  } : {
     date: today,
     amountRequested: '',
     amountReceived: '',
@@ -37,7 +44,7 @@ export default function PayoutModal({ payoutNumber, onSave, onClose }) {
         style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom))' }}
       >
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-bold text-gray-900 dark:text-white">Log Payout #{payoutNumber}</h2>
+          <h2 className="text-base font-bold text-gray-900 dark:text-white">{initialData ? `Edit Payout #${payoutNumber}` : `Log Payout #${payoutNumber}`}</h2>
           <button
             onClick={onClose}
             className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
@@ -145,7 +152,7 @@ export default function PayoutModal({ payoutNumber, onSave, onClose }) {
             disabled={saving}
             className="flex-1 py-3 rounded-xl bg-green-600 hover:bg-green-500 text-white text-sm font-medium disabled:opacity-50 transition-colors"
           >
-            {saving ? 'Saving…' : 'Save Payout'}
+            {saving ? 'Saving…' : initialData ? 'Save Changes' : 'Save Payout'}
           </button>
         </div>
       </div>

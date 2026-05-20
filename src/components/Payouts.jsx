@@ -32,6 +32,7 @@ function CheckRow({ passed, label, detail }) {
 
 export default function Payouts({ m, rules, payouts, loading, addPayout, updatePayout, deletePayout, account }) {
   const [showModal, setShowModal] = useState(false);
+  const [editingPayout, setEditingPayout] = useState(null);
 
   // Resolve payout rules from account (set in EditAccountModal), with defaults
   const pr = account?.payoutRules ?? {};
@@ -74,7 +75,7 @@ export default function Payouts({ m, rules, payouts, loading, addPayout, updateP
         <div className="px-4 pt-4 pb-3 flex items-center justify-between">
           <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Payouts</h3>
           <button
-            onClick={() => setShowModal(true)}
+            onClick={() => { setEditingPayout(null); setShowModal(true); }}
             className="flex items-center gap-1.5 bg-green-600 hover:bg-green-500 active:bg-green-700 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
           >
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -168,6 +169,15 @@ export default function Payouts({ m, rules, payouts, loading, addPayout, updateP
                       {p.status === 'received' ? 'Received' : 'Pending'}
                     </button>
                     <button
+                      onClick={() => { setEditingPayout(p); setShowModal(true); }}
+                      className="text-gray-300 dark:text-gray-600 hover:text-blue-400 dark:hover:text-blue-400 transition-colors"
+                      title="Edit payout"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                      </svg>
+                    </button>
+                    <button
                       onClick={() => {
                         if (confirm(`Delete Payout #${p.number}?`)) deletePayout(p.id);
                       }}
@@ -193,9 +203,13 @@ export default function Payouts({ m, rules, payouts, loading, addPayout, updateP
 
       {showModal && (
         <PayoutModal
-          payoutNumber={nextNumber}
-          onSave={addPayout}
-          onClose={() => setShowModal(false)}
+          payoutNumber={editingPayout ? editingPayout.number : nextNumber}
+          initialData={editingPayout}
+          onSave={editingPayout
+            ? (form) => updatePayout(editingPayout.id, form)
+            : addPayout
+          }
+          onClose={() => { setShowModal(false); setEditingPayout(null); }}
         />
       )}
     </>
