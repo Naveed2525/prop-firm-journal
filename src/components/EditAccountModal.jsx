@@ -52,6 +52,7 @@ export default function EditAccountModal({ account, onSave, onClose }) {
   const [maxPayoutCap, setMaxPayoutCap] = useState(String(existingPR.maxPayoutCap ?? firmPayoutDefs.maxPayoutCap));
   const [costs, setCosts] = useState(() => initCosts(account.costs));
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   const firm = firms[account.firm];
   const currentDefaultRules = getRulesFromFirms(firms, account.firm, account.size, plan);
@@ -59,38 +60,46 @@ export default function EditAccountModal({ account, onSave, onClose }) {
 
   const handleSave = async () => {
     setSaving(true);
-    let consistencyOverride = null;
-    if (consistencyChoice === "custom") {
-      const pct = parseFloat(customConsistency);
-      consistencyOverride = isNaN(pct) ? null : pct / 100;
-    } else if (consistencyChoice !== "") {
-      consistencyOverride = parseFloat(consistencyChoice);
+    setSaveError('');
+    try {
+      let consistencyOverride = null;
+      if (consistencyChoice === "custom") {
+        const pct = parseFloat(customConsistency);
+        consistencyOverride = isNaN(pct) ? null : pct / 100;
+      } else if (consistencyChoice !== "") {
+        consistencyOverride = parseFloat(consistencyChoice);
+      }
+
+      const ptNum = parseFloat(profitTargetOverride);
+      const profitTargetOverrideVal = phase === 'funded' && !isNaN(ptNum) && ptNum > 0 ? ptNum : null;
+
+      const payoutRules = phase === 'funded' ? {
+        minWinningDays: parseInt(minWinningDays) || 5,
+        minProfitPerDay: parseFloat(minProfitPerDay) || 0,
+        maxPayoutPct: parseFloat(maxPayoutPct) || 50,
+        maxPayoutCap: parseFloat(maxPayoutCap) || 0,
+      } : null;
+
+      await onSave({
+        phase,
+        plan,
+        label,
+        startDate,
+        consistencyOverride,
+        blown,
+        status: phase === 'evaluation' && passed ? 'passed' : null,
+        profitTargetOverride: profitTargetOverrideVal,
+        payoutRules,
+        costs: serializeCosts(costs),
+        // Signal to the parent to create a funded account only when toggling passed on for the first time
+        _createFundedAccount: phase === 'evaluation' && passed && account.status !== 'passed',
+      });
+      setSaving(false);
+      onClose();
+    } catch (e) {
+      setSaveError(e?.message ?? 'Something went wrong. Please try again.');
+      setSaving(false);
     }
-
-    const ptNum = parseFloat(profitTargetOverride);
-    const profitTargetOverrideVal = phase === 'funded' && !isNaN(ptNum) && ptNum > 0 ? ptNum : null;
-
-    const payoutRules = phase === 'funded' ? {
-      minWinningDays: parseInt(minWinningDays) || 5,
-      minProfitPerDay: parseFloat(minProfitPerDay) || 0,
-      maxPayoutPct: parseFloat(maxPayoutPct) || 50,
-      maxPayoutCap: parseFloat(maxPayoutCap) || 0,
-    } : null;
-
-    await onSave({
-      phase,
-      plan,
-      label,
-      startDate,
-      consistencyOverride,
-      blown,
-      status: phase === 'evaluation' && passed ? 'passed' : null,
-      profitTargetOverride: profitTargetOverrideVal,
-      payoutRules,
-      costs: serializeCosts(costs),
-    });
-    setSaving(false);
-    onClose();
   };
 
   const inp = (label, value, onChange, type = "text", placeholder = "") => (
@@ -233,7 +242,11 @@ export default function EditAccountModal({ account, onSave, onClose }) {
               <div>
                 <p style={{ fontSize: 13, fontWeight: 700, color: passed ? "#059669" : "var(--text, #111)", margin: 0 }}>Mark as Passed</p>
                 <p style={{ fontSize: 11, color: passed ? "#10b981" : "var(--text2, #6b7280)", margin: "2px 0 0" }}>
-                  {passed ? "Eval marked passed — moved to Passed Eval section" : "Profit target hit and evaluation approved"}
+                  {passed
+                    ? account.status === 'passed'
+                      ? "Already passed — saving won't create another funded account"
+                      : "Saving will create a funded account and navigate there"
+                    : "Profit target hit and evaluation approved"}
                 </p>
               </div>
               <div style={{ width: 44, height: 24, borderRadius: 12, background: passed ? "#059669" : "#d1d5db", position: "relative", flexShrink: 0, transition: "background 0.2s" }}>
@@ -269,8 +282,13 @@ export default function EditAccountModal({ account, onSave, onClose }) {
           disabled={saving}
           style={{ width: "100%", padding: "12px", background: saving ? "#9ca3af" : "#2563eb", color: "#fff", border: "none", borderRadius: 10, fontSize: 15, fontWeight: 700, cursor: saving ? "default" : "pointer", marginBottom: 8 }}
         >
-          {saving ? "Saving…" : "Save Changes"}
+          {saving
+            ? (passed && account.status !== 'passed' ? "Creating funded account…" : "Saving…")
+            : "Save Changes"}
         </button>
+        {saveError && (
+          <p style={{ fontSize: 12, color: "#dc2626", marginBottom: 8, textAlign: "center" }}>{saveError}</p>
+        )}
         <button
           onClick={onClose}
           style={{ width: "100%", padding: "12px", background: "transparent", color: "var(--text2, #6b7280)", border: "1px solid var(--border, #e5e7eb)", borderRadius: 10, fontSize: 15, cursor: "pointer", marginBottom: 8 }}

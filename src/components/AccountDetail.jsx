@@ -478,8 +478,23 @@ export default function AccountDetail({ accounts, onDeleteAccount, onUpdateAccou
         <EditAccountModal
           account={account}
           onSave={async (updates) => {
-            await onUpdateAccount(account.id, updates);
-            setShowEdit(false);
+            const { _createFundedAccount, ...accountUpdates } = updates;
+            if (_createFundedAccount) {
+              const newAccount = await onAddAccount({
+                firm: account.firm,
+                size: account.size,
+                plan: account.plan,
+                phase: 'funded',
+                label: accountUpdates.label || account.label || '',
+                startDate: new Date().toISOString().slice(0, 10),
+              });
+              if (!newAccount?.id) throw new Error('Server returned no account ID — please try again.');
+              await onUpdateAccount(account.id, accountUpdates);
+              setShowEdit(false);
+              navigate(`/account/${newAccount.id}`);
+            } else {
+              await onUpdateAccount(account.id, accountUpdates);
+            }
           }}
           onClose={() => setShowEdit(false)}
         />
