@@ -205,6 +205,13 @@ export default function Payouts({ m, rules, payouts, loading, addPayout, updateP
         <PayoutModal
           payoutNumber={editingPayout ? editingPayout.number : nextNumber}
           initialData={editingPayout}
+          accountSize={account?.size ?? 0}
+          totalPnL={m.totalPnL ?? 0}
+          previousPayoutsReceived={
+            editingPayout && editingPayout.status === 'received'
+              ? totalReceived - (Number(editingPayout.amountReceived) || 0)
+              : totalReceived
+          }
           onSave={editingPayout
             ? (form) => updatePayout(editingPayout.id, form)
             : addPayout

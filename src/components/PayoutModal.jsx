@@ -1,26 +1,41 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
-export default function PayoutModal({ payoutNumber, onSave, onClose, initialData }) {
+function calcBalance(amtRequested, amtReceived, accountSize, totalPnL, prevReceived) {
+  if (!(accountSize > 0)) return '';
+  const effective = Number(amtReceived) > 0 ? Number(amtReceived) : Number(amtRequested);
+  if (!effective) return '';
+  return String(Math.round((accountSize ?? 0) + (totalPnL ?? 0) - (prevReceived ?? 0) - effective));
+}
+
+export default function PayoutModal({
+  payoutNumber, onSave, onClose, initialData,
+  accountSize, totalPnL, previousPayoutsReceived,
+}) {
   const today = new Date().toISOString().split('T')[0];
-  const [form, setForm] = useState(() => initialData ? {
-    date: initialData.date ?? today,
-    amountRequested: initialData.amountRequested !== undefined ? String(initialData.amountRequested) : '',
-    amountReceived: initialData.amountReceived !== undefined ? String(initialData.amountReceived) : '',
-    balanceAfter: initialData.balanceAfter !== undefined ? String(initialData.balanceAfter) : '',
-    notes: initialData.notes ?? '',
-    status: initialData.status ?? 'pending',
-  } : {
-    date: today,
-    amountRequested: '',
-    amountReceived: '',
-    balanceAfter: '',
-    notes: '',
-    status: 'pending',
+  const [form, setForm] = useState(() => {
+    const initRequested = initialData?.amountRequested !== undefined ? String(initialData.amountRequested) : '';
+    const initReceived  = initialData?.amountReceived  !== undefined ? String(initialData.amountReceived)  : '';
+    return {
+      date:            initialData?.date           ?? today,
+      amountRequested: initRequested,
+      amountReceived:  initReceived,
+      balanceAfter:    calcBalance(initRequested, initReceived, accountSize, totalPnL, previousPayoutsReceived),
+      notes:           initialData?.notes   ?? '',
+      status:          initialData?.status  ?? 'pending',
+    };
   });
+  const [balanceOverridden, setBalanceOverridden] = useState(false);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const canAutoCalc = accountSize > 0;
+
+  useEffect(() => {
+    if (!canAutoCalc || balanceOverridden) return;
+    const suggested = calcBalance(form.amountRequested, form.amountReceived, accountSize, totalPnL, previousPayoutsReceived);
+    if (suggested !== '') setForm((f) => ({ ...f, balanceAfter: suggested }));
+  }, [form.amountRequested, form.amountReceived, balanceOverridden]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSave = async () => {
     if (!form.date) return setErr('Date is required.');
@@ -44,7 +59,9 @@ export default function PayoutModal({ payoutNumber, onSave, onClose, initialData
         style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom))' }}
       >
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-bold text-gray-900 dark:text-white">{initialData ? `Edit Payout #${payoutNumber}` : `Log Payout #${payoutNumber}`}</h2>
+          <h2 className="text-base font-bold text-gray-900 dark:text-white">
+            {initialData ? `Edit Payout #${payoutNumber}` : `Log Payout #${payoutNumber}`}
+          </h2>
           <button
             onClick={onClose}
             className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
@@ -97,9 +114,28 @@ export default function PayoutModal({ payoutNumber, onSave, onClose, initialData
             inputMode="decimal"
             placeholder="1200"
             value={form.balanceAfter}
-            onChange={(e) => set('balanceAfter', e.target.value)}
+            onChange={(e) => {
+              setBalanceOverridden(true);
+              set('balanceAfter', e.target.value);
+            }}
             className="w-full bg-gray-100 dark:bg-gray-800 rounded-xl px-3 py-2.5 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
           />
+          {canAutoCalc && (
+            balanceOverridden ? (
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                Manually entered.{' '}
+                <button
+                  type="button"
+                  onClick={() => setBalanceOverridden(false)}
+                  className="text-green-600 dark:text-green-400 underline"
+                >
+                  Reset to auto
+                </button>
+              </p>
+            ) : (
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Auto-calculated — you can override this</p>
+            )
+          )}
         </div>
 
         <div>
