@@ -50,6 +50,8 @@ export default function EditAccountModal({ account, onSave, onClose }) {
   const [minProfitPerDay, setMinProfitPerDay] = useState(String(existingPR.minProfitPerDay ?? firmPayoutDefs.minProfitPerDay));
   const [maxPayoutPct, setMaxPayoutPct] = useState(String(existingPR.maxPayoutPct ?? firmPayoutDefs.maxPayoutPct));
   const [maxPayoutCap, setMaxPayoutCap] = useState(String(existingPR.maxPayoutCap ?? firmPayoutDefs.maxPayoutCap));
+  const [purchaseDate, setPurchaseDate] = useState(() => account.purchaseDateTime?.slice(0, 10) ?? '');
+  const [purchaseTime, setPurchaseTime] = useState(() => account.purchaseDateTime?.slice(11, 16) ?? '');
   const [costs, setCosts] = useState(() => initCosts(account.costs));
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
@@ -80,6 +82,10 @@ export default function EditAccountModal({ account, onSave, onClose }) {
         maxPayoutCap: parseFloat(maxPayoutCap) || 0,
       } : null;
 
+      const purchaseDateTime = phase === 'evaluation' && purchaseDate
+        ? `${purchaseDate}T${purchaseTime || '00:00'}`
+        : null;
+
       await onSave({
         phase,
         plan,
@@ -90,6 +96,7 @@ export default function EditAccountModal({ account, onSave, onClose }) {
         status: phase === 'evaluation' && passed ? 'passed' : null,
         profitTargetOverride: profitTargetOverrideVal,
         payoutRules,
+        purchaseDateTime,
         costs: serializeCosts(costs),
         // Signal to the parent to create a funded account only when toggling passed on for the first time
         _createFundedAccount: phase === 'evaluation' && passed && account.status !== 'passed',
@@ -234,6 +241,29 @@ export default function EditAccountModal({ account, onSave, onClose }) {
 
         {/* Start Date */}
         {inp("Start Date", startDate, setStartDate, "date")}
+
+        {/* Purchase Date & Time — eval only */}
+        {phase === 'evaluation' && (
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text2, #6b7280)", textTransform: "uppercase", letterSpacing: "0.05em", display: "block", marginBottom: 6 }}>Purchase Date & Time</label>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              <div>
+                <label style={{ fontSize: 10, color: "var(--text3, #9ca3af)", display: "block", marginBottom: 3 }}>Date</label>
+                <input
+                  type="date" value={purchaseDate} onChange={e => setPurchaseDate(e.target.value)}
+                  style={{ fontSize: 14, padding: "9px 12px", borderRadius: 8, border: "1px solid var(--border, #e5e7eb)", background: "var(--surface2, #f9fafb)", color: "var(--text, #111)", fontFamily: "inherit", width: "100%", outline: "none", boxSizing: "border-box" }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: 10, color: "var(--text3, #9ca3af)", display: "block", marginBottom: 3 }}>Time</label>
+                <input
+                  type="time" value={purchaseTime} onChange={e => setPurchaseTime(e.target.value)}
+                  style={{ fontSize: 14, padding: "9px 12px", borderRadius: 8, border: "1px solid var(--border, #e5e7eb)", background: "var(--surface2, #f9fafb)", color: "var(--text, #111)", fontFamily: "inherit", width: "100%", outline: "none", boxSizing: "border-box" }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Mark as Passed toggle — eval only */}
         {phase === 'evaluation' && (

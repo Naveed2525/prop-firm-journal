@@ -31,7 +31,10 @@ export default function ExpensesDashboard({ accounts }) {
     const events = [];
     for (const acc of accounts) {
       const startDate = acc.startDate ?? acc.createdAt?.slice(0, 10);
-      for (const ev of getCostEvents(acc.costs, startDate)) {
+      const evalFeeDate = acc.phase === 'evaluation' && acc.purchaseDateTime
+        ? acc.purchaseDateTime.slice(0, 10)
+        : undefined;
+      for (const ev of getCostEvents(acc.costs, startDate, { evalFeeDate })) {
         events.push({ ...ev, firm: acc.firm });
       }
     }

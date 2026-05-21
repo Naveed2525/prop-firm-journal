@@ -143,6 +143,11 @@ export default function AccountDetail({ accounts, onDeleteAccount, onUpdateAccou
             <p className="text-xs text-gray-400 dark:text-gray-500 capitalize">
               {account.phase} · {effectiveRules?.planName} · {effectiveRules ? `${(effectiveRules.split * 100).toFixed(0)}% split` : ''}
             </p>
+            {account.phase === 'evaluation' && account.purchaseDateTime && (
+              <p className="text-xs text-gray-400 dark:text-gray-500">
+                Purchased {formatPurchaseDateTime(account.purchaseDateTime)}
+              </p>
+            )}
           </div>
           <span className={`text-xs px-2 py-1 rounded-full font-medium ${
             account.blown
@@ -509,6 +514,11 @@ export default function AccountDetail({ accounts, onDeleteAccount, onUpdateAccou
       )}
     </div>
   );
+}
+
+function formatPurchaseDateTime(dt) {
+  const d = new Date(dt);
+  return d.toLocaleString('default', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
 }
 
 function applyConsistencyOverride(rules, override) {

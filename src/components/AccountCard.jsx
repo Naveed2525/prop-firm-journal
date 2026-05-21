@@ -94,6 +94,11 @@ export default function AccountCard({ account, onClick }) {
           <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 capitalize">
             {account.phase} · {effectiveRules?.planName ?? 'Standard'} · {(effectiveRules?.split * 100).toFixed(0)}% split
           </p>
+          {account.phase === 'evaluation' && account.purchaseDateTime && (
+            <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+              Purchased {formatPurchaseDateTime(account.purchaseDateTime)}
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <span className={`w-2 h-2 rounded-full flex-shrink-0 ${isBlown ? 'bg-red-500' : statusDot}`} />
@@ -186,6 +191,11 @@ export default function AccountCard({ account, onClick }) {
 
     </button>
   );
+}
+
+function formatPurchaseDateTime(dt) {
+  const d = new Date(dt);
+  return d.toLocaleString('default', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
 }
 
 function MiniMetric({ label, value, sub, color = 'text-gray-700 dark:text-gray-200', pct = 0, warn, danger }) {

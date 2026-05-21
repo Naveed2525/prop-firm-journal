@@ -17,15 +17,20 @@ export default function AddAccountModal({ onSave, onClose }) {
   const { firms } = useFirms();
   const firmKeys = Object.keys(firms);
 
-  const [form, setForm] = useState({
-    firm: 'topstep',
-    size: 50000,
-    plan: 'standard',
-    phase: 'evaluation',
-    label: '',
-    startDate: new Date().toISOString().slice(0, 10),
-    consistencyKey: 'default',
-    consistencyCustom: '',
+  const [form, setForm] = useState(() => {
+    const now = new Date();
+    return {
+      firm: 'topstep',
+      size: 50000,
+      plan: 'standard',
+      phase: 'evaluation',
+      label: '',
+      startDate: now.toISOString().slice(0, 10),
+      consistencyKey: 'default',
+      consistencyCustom: '',
+      purchaseDate: now.toISOString().slice(0, 10),
+      purchaseTime: now.toTimeString().slice(0, 5),
+    };
   });
   const [costs, setCosts] = useState(() => initCosts(null));
   const [saving, setSaving] = useState(false);
@@ -71,8 +76,11 @@ export default function AddAccountModal({ onSave, onClose }) {
         consistencyOverride = parseFloat(form.consistencyKey) / 100;
       }
 
-      const { consistencyKey, consistencyCustom, ...rest } = form;
-      await onSave({ ...rest, size: Number(rest.size), consistencyOverride, costs: serializeCosts(costs) });
+      const { consistencyKey, consistencyCustom, purchaseDate, purchaseTime, ...rest } = form;
+      const purchaseDateTime = rest.phase === 'evaluation' && purchaseDate
+        ? `${purchaseDate}T${purchaseTime || '00:00'}`
+        : undefined;
+      await onSave({ ...rest, size: Number(rest.size), consistencyOverride, costs: serializeCosts(costs), ...(purchaseDateTime !== undefined ? { purchaseDateTime } : {}) });
       onClose();
     } catch (ex) {
       setErr(ex.message);
@@ -162,6 +170,33 @@ export default function AddAccountModal({ onSave, onClose }) {
               ))}
             </div>
           </div>
+
+          {/* Purchase Date & Time — evaluation only */}
+          {form.phase === 'evaluation' && (
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mb-2">Purchase Date & Time</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-gray-400 dark:text-gray-500 mb-1">Date</label>
+                  <input
+                    type="date"
+                    value={form.purchaseDate}
+                    onChange={(e) => setForm((f) => ({ ...f, purchaseDate: e.target.value }))}
+                    className="input"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-400 dark:text-gray-500 mb-1">Time</label>
+                  <input
+                    type="time"
+                    value={form.purchaseTime}
+                    onChange={(e) => setForm((f) => ({ ...f, purchaseTime: e.target.value }))}
+                    className="input"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Consistency Rule Override */}
           <div>

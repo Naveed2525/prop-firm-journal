@@ -8,13 +8,14 @@ export function computeTotalCost(costs) {
   );
 }
 
-export function getCostEvents(costs, startDate) {
+export function getCostEvents(costs, startDate, { evalFeeDate } = {}) {
   if (!costs) return [];
   const events = [];
 
   const evalFee = Number(costs.evalFee) || 0;
-  if (evalFee > 0 && startDate) {
-    events.push({ date: startDate, amount: evalFee, label: 'Eval Fee' });
+  const feeDate = evalFeeDate || startDate;
+  if (evalFee > 0 && feeDate) {
+    events.push({ date: feeDate, amount: evalFee, label: 'Eval Fee' });
   }
 
   for (const r of (costs.resets ?? [])) {
