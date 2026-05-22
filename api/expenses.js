@@ -25,11 +25,11 @@ export default async function handler(req, res) {
       const acc = allAccounts[i];
       const payouts = payoutLists[i] ?? [];
       for (const p of payouts) {
-        if (p.status === 'received') {
+        if (p.status?.toLowerCase() === 'received') {
           payoutEvents.push({
             accountId: acc.id,
             firm: acc.firm,
-            amount: Number(p.amount) || 0,
+            amount: Number(p.amountReceived) || 0,
             date: p.date || p.receivedAt || p.createdAt?.slice(0, 10) || null,
           });
         }
