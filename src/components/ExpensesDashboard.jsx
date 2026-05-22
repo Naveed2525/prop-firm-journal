@@ -17,11 +17,10 @@ export default function ExpensesDashboard({ accounts }) {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    if (!open) return;
     apiFetch('/api/expenses')
       .then((d) => setPayoutEvents(d.payoutEvents ?? []))
       .catch(() => {});
-  }, [open]);
+  }, []);
 
   const totalSpent = accounts.reduce((s, a) => s + computeTotalCost(a.costs), 0);
   const totalPayouts = payoutEvents.reduce((s, e) => s + e.amount, 0);
@@ -88,43 +87,36 @@ export default function ExpensesDashboard({ accounts }) {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-between px-4 py-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+        className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
       >
-        <div className="flex items-center gap-2">
-          <svg className="w-4 h-4 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <div className="flex items-center gap-2 min-w-0">
+          <svg className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
           </svg>
-          <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Expenses Dashboard</span>
-          {totalSpent > 0 && (
-            <span className="text-xs font-medium text-red-600 dark:text-red-400">
-              −${totalSpent.toLocaleString(undefined, { maximumFractionDigits: 0 })} spent
-            </span>
-          )}
+          <div className="min-w-0">
+            <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Expenses Dashboard</span>
+            <p className="text-xs text-left mt-0.5 flex items-center gap-1.5">
+              {totalSpent > 0 ? (
+                <span className="text-red-600 dark:text-red-400">−${totalSpent.toLocaleString(undefined, { maximumFractionDigits: 0 })} spent</span>
+              ) : (
+                <span className="text-gray-400 dark:text-gray-500">$0 spent</span>
+              )}
+              <span className="text-gray-300 dark:text-gray-600">·</span>
+              {totalPayouts > 0 ? (
+                <span className="text-green-600 dark:text-green-400">+${totalPayouts.toLocaleString(undefined, { maximumFractionDigits: 0 })} payouts</span>
+              ) : (
+                <span className="text-gray-400 dark:text-gray-500">$0 payouts</span>
+              )}
+            </p>
+          </div>
         </div>
-        <svg className={`w-4 h-4 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <svg className={`w-4 h-4 text-gray-400 flex-shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
         </svg>
       </button>
 
       {open && (
         <div className="px-4 pb-5 pt-1 border-t border-gray-100 dark:border-gray-800 space-y-5">
-
-          {/* Business Overview */}
-          <div>
-            <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-2 pt-1">Business Overview</p>
-            <div className="grid grid-cols-2 gap-2">
-              <SummaryTile
-                label="Total Spent"
-                value={`−$${totalSpent.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
-                color="text-red-600 dark:text-red-400"
-              />
-              <SummaryTile
-                label="Total Payouts"
-                value={`+$${totalPayouts.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
-                color="text-green-600 dark:text-green-400"
-              />
-            </div>
-          </div>
 
           {/* By Firm */}
           {Object.keys(byFirm).length > 0 && (
@@ -242,15 +234,6 @@ export default function ExpensesDashboard({ accounts }) {
 
         </div>
       )}
-    </div>
-  );
-}
-
-function SummaryTile({ label, value, color }) {
-  return (
-    <div className="bg-gray-50 dark:bg-gray-800/60 rounded-xl px-3 py-2.5">
-      <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">{label}</p>
-      <p className={`text-sm font-semibold ${color}`}>{value}</p>
     </div>
   );
 }
