@@ -81,7 +81,7 @@ export default function ExpensesDashboard({ accounts }) {
   const showCashflow = hasCostEvents && hasPayoutEvents;
   const showPeriodSection = hasCostEvents || hasPayoutEvents;
 
-  if (totalSpent === 0 && !hasPayoutEvents && !open) return null;
+  if (totalSpent === 0 && accounts.length === 0 && !open) return null;
 
   return (
     <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl overflow-hidden shadow-sm dark:shadow-none">

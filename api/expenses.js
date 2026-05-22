@@ -13,15 +13,16 @@ export default async function handler(req, res) {
 
   try {
     const redis = await getRedis();
-    const accounts = (await rGet(redis, 'pfj:accounts')) ?? [];
+    // ALL accounts regardless of blown status — payouts from blown accounts still count
+    const allAccounts = (await rGet(redis, 'pfj:accounts')) ?? [];
 
     const payoutLists = await Promise.all(
-      accounts.map((a) => rGet(redis, `pfj:payouts:${a.id}`))
+      allAccounts.map((a) => rGet(redis, `pfj:payouts:${a.id}`))
     );
 
     const payoutEvents = [];
-    for (let i = 0; i < accounts.length; i++) {
-      const acc = accounts[i];
+    for (let i = 0; i < allAccounts.length; i++) {
+      const acc = allAccounts[i];
       const payouts = payoutLists[i] ?? [];
       for (const p of payouts) {
         if (p.status === 'received') {
