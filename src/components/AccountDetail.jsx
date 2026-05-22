@@ -22,6 +22,7 @@ export default function AccountDetail({ accounts, onDeleteAccount, onUpdateAccou
   const { payouts, loading: payoutsLoading, addPayout, updatePayout, deletePayout } = usePayouts(id);
   const [showAddTrade, setShowAddTrade] = useState(false);
   const [showRules, setShowRules] = useState(false);
+  const [showCosts, setShowCosts] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showCalculator, setShowCalculator] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
@@ -380,26 +381,34 @@ export default function AccountDetail({ accounts, onDeleteAccount, onUpdateAccou
           (costs.other ?? []).forEach((o) => { if (Number(o.amount) > 0) rows.push({ label: o.description || 'Other', amount: Number(o.amount) }); });
           return (
             <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl overflow-hidden shadow-sm dark:shadow-none">
-              <div className="px-4 py-3.5 border-b border-gray-100 dark:border-gray-800 flex items-center gap-2">
-                <svg className="w-4 h-4 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Costs & Fees</span>
-              </div>
-              <div className="px-4 py-3 space-y-2">
-                {rows.map((r, i) => (
-                  <div key={i} className="flex items-center justify-between text-sm">
-                    <span className="text-gray-500 dark:text-gray-400">{r.label}</span>
-                    <span className="text-red-600 dark:text-red-400 font-medium">−${r.amount.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
-                  </div>
-                ))}
-                <div className="border-t border-gray-100 dark:border-gray-800 pt-2 mt-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="font-semibold text-gray-700 dark:text-gray-300">Total Spent</span>
-                    <span className="text-red-600 dark:text-red-400 font-semibold">−${totalCost.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
-                  </div>
+              <button
+                type="button"
+                onClick={() => setShowCosts((v) => !v)}
+                className="w-full px-4 py-3.5 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <svg className="w-4 h-4 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Costs & Fees</span>
+                  <span className="text-xs font-medium text-red-600 dark:text-red-400">
+                    −${totalCost.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                  </span>
                 </div>
-              </div>
+                <svg className={`w-4 h-4 text-gray-400 transition-transform ${showCosts ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {showCosts && (
+                <div className="px-4 py-3 space-y-2 border-t border-gray-100 dark:border-gray-800">
+                  {rows.map((r, i) => (
+                    <div key={i} className="flex items-center justify-between text-sm">
+                      <span className="text-gray-500 dark:text-gray-400">{r.label}</span>
+                      <span className="text-red-600 dark:text-red-400 font-medium">−${r.amount.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           );
         })()}

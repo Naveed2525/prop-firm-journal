@@ -1,7 +1,8 @@
 import { getRulesFromFirms } from '../data/propFirms';
 import { useFirms } from '../context/FirmsContext';
 import { computeMetrics, getAlerts } from '../utils/metrics';
-import { useTrades } from '../hooks/useData';
+import { useTrades, usePayouts } from '../hooks/useData';
+import { computeTotalCost } from '../utils/costs';
 import ProgressBar from './ProgressBar';
 
 function applyConsistencyOverride(rules, override) {
@@ -12,6 +13,7 @@ function applyConsistencyOverride(rules, override) {
 export default function AccountCard({ account, onClick }) {
   const { firms } = useFirms();
   const { trades, loading } = useTrades(account.id);
+  const { payouts } = usePayouts(account.id);
 
   const firm  = firms[account.firm];
   const rules = getRulesFromFirms(firms, account.firm, account.size, account.plan);
@@ -29,6 +31,10 @@ export default function AccountCard({ account, onClick }) {
   const consistencyEnabled = effectiveRules?.consistencyRule != null;
 
   const isBlown = account.blown === true;
+  const totalCost = computeTotalCost(account.costs);
+  const totalPaidOut = payouts
+    .filter((p) => p.status?.toLowerCase() === 'received')
+    .reduce((s, p) => s + (Number(p.amountReceived) || 0), 0);
 
   if (loading) {
     return (
@@ -186,6 +192,25 @@ export default function AccountCard({ account, onClick }) {
             : 'bg-green-50 text-green-700 dark:bg-green-950/60 dark:text-green-300'
         }`}>
           {alerts[0].msg}
+        </div>
+      )}
+
+      {/* Cost / payout summary */}
+      {(totalCost > 0 || totalPaidOut > 0) && (
+        <div className="flex items-center gap-2 mt-2.5 pt-2.5 border-t border-gray-100 dark:border-gray-800 text-xs">
+          {totalCost > 0 && (
+            <span className="text-red-600 dark:text-red-400">
+              −${totalCost.toLocaleString(undefined, { maximumFractionDigits: 0 })} spent
+            </span>
+          )}
+          {totalCost > 0 && totalPaidOut > 0 && (
+            <span className="text-gray-300 dark:text-gray-600">·</span>
+          )}
+          {totalPaidOut > 0 && (
+            <span className="text-green-600 dark:text-green-400">
+              +${totalPaidOut.toLocaleString(undefined, { maximumFractionDigits: 0 })} paid out
+            </span>
+          )}
         </div>
       )}
 
