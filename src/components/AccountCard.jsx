@@ -105,6 +105,16 @@ export default function AccountCard({ account, onClick }) {
               Purchased {formatPurchaseDateTime(account.purchaseDateTime)}
             </p>
           )}
+          {account.status === 'passed' && (account.passedAt || account.updatedAt) && (
+            <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+              Passed: {formatDate(account.passedAt || account.updatedAt)}
+            </p>
+          )}
+          {isBlown && (account.blownAt || account.updatedAt) && (
+            <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+              Blown: {formatDate(account.blownAt || account.updatedAt)}
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <span className={`w-2 h-2 rounded-full flex-shrink-0 ${isBlown ? 'bg-red-500' : statusDot}`} />
@@ -221,6 +231,11 @@ export default function AccountCard({ account, onClick }) {
 function formatPurchaseDateTime(dt) {
   const d = new Date(dt);
   return d.toLocaleString('default', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+
+function formatDate(dt) {
+  const d = new Date(dt);
+  return d.toLocaleString('default', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 function MiniMetric({ label, value, sub, color = 'text-gray-700 dark:text-gray-200', pct = 0, warn, danger }) {

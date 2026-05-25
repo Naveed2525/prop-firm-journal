@@ -86,6 +86,7 @@ export default function EditAccountModal({ account, onSave, onClose }) {
         ? `${purchaseDate}T${purchaseTime || '00:00'}`
         : null;
 
+      const now = new Date().toISOString();
       await onSave({
         phase,
         plan,
@@ -93,7 +94,9 @@ export default function EditAccountModal({ account, onSave, onClose }) {
         startDate,
         consistencyOverride,
         blown,
+        blownAt: blown && !account.blown ? now : undefined,
         status: phase === 'evaluation' && passed ? 'passed' : null,
+        passedAt: phase === 'evaluation' && passed && account.status !== 'passed' ? now : undefined,
         profitTargetOverride: profitTargetOverrideVal,
         payoutRules,
         purchaseDateTime,
