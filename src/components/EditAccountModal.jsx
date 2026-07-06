@@ -43,6 +43,11 @@ export default function EditAccountModal({ account, onSave, onClose }) {
     const def = getRules(account.firm, account.size, account.plan);
     return def?.profitTarget ? String(def.profitTarget) : '';
   });
+  const [maxDrawdownOverride, setMaxDrawdownOverride] = useState(() => {
+    if (account.maxDrawdownOverride != null) return String(account.maxDrawdownOverride);
+    const def = getRules(account.firm, account.size, account.plan);
+    return def?.maxDrawdown ? String(def.maxDrawdown) : '';
+  });
   const { firms } = useFirms();
   const firmPayoutDefs = FIRM_PAYOUT_DEFAULTS[account.firm] ?? { minWinningDays: 5, minProfitPerDay: 0, maxPayoutPct: 50, maxPayoutCap: 0 };
   const existingPR = account.payoutRules ?? {};
@@ -59,6 +64,7 @@ export default function EditAccountModal({ account, onSave, onClose }) {
   const firm = firms[account.firm];
   const currentDefaultRules = getRulesFromFirms(firms, account.firm, account.size, plan);
   const defaultProfitTarget = currentDefaultRules?.profitTarget ?? null;
+  const defaultMaxDrawdown = currentDefaultRules?.maxDrawdown ?? null;
 
   const handleSave = async () => {
     setSaving(true);
@@ -74,6 +80,9 @@ export default function EditAccountModal({ account, onSave, onClose }) {
 
       const ptNum = parseFloat(profitTargetOverride);
       const profitTargetOverrideVal = phase === 'funded' && !isNaN(ptNum) && ptNum > 0 ? ptNum : null;
+
+      const mddNum = parseFloat(maxDrawdownOverride);
+      const maxDrawdownOverrideVal = !isNaN(mddNum) && mddNum > 0 ? mddNum : null;
 
       const payoutRules = phase === 'funded' ? {
         minWinningDays: parseInt(minWinningDays) || 5,
@@ -98,6 +107,7 @@ export default function EditAccountModal({ account, onSave, onClose }) {
         status: phase === 'evaluation' && passed ? 'passed' : null,
         passedAt: phase === 'evaluation' && passed && account.status !== 'passed' ? now : undefined,
         profitTargetOverride: profitTargetOverrideVal,
+        maxDrawdownOverride: maxDrawdownOverrideVal,
         payoutRules,
         purchaseDateTime,
         costs: serializeCosts(costs),
@@ -189,6 +199,24 @@ export default function EditAccountModal({ account, onSave, onClose }) {
             No consistency rule — the consistency gauge will be hidden for this account.
           </div>
         )}
+
+        {/* Max Drawdown override — eval and funded */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 14 }}>
+          <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text2, #6b7280)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Max Drawdown ($)</label>
+          <input
+            type="number"
+            value={maxDrawdownOverride}
+            onChange={e => setMaxDrawdownOverride(e.target.value)}
+            placeholder={defaultMaxDrawdown ? String(defaultMaxDrawdown) : 'e.g. 2000'}
+            min="1"
+            style={{ fontSize: 14, padding: "9px 12px", borderRadius: 8, border: "1px solid var(--border, #e5e7eb)", background: "var(--surface2, #f9fafb)", color: "var(--text, #111)", fontFamily: "inherit", width: "100%", outline: "none" }}
+          />
+          {defaultMaxDrawdown && (
+            <p style={{ fontSize: 11, color: "var(--text3, #9ca3af)", margin: "2px 0 0" }}>
+              Firm default: ${defaultMaxDrawdown.toLocaleString()}
+            </p>
+          )}
+        </div>
 
         {/* Profit Target override — funded only */}
         {phase === 'funded' && (

@@ -10,6 +10,13 @@ function applyConsistencyOverride(rules, override) {
   return { ...rules, consistencyRule: override === 0 ? null : override };
 }
 
+function applyMaxDrawdownOverride(rules, override) {
+  if (!rules || override == null) return rules;
+  const n = Number(override);
+  if (isNaN(n) || n <= 0) return rules;
+  return { ...rules, maxDrawdown: n };
+}
+
 export default function AccountCard({ account, onClick }) {
   const { firms } = useFirms();
   const { trades, loading } = useTrades(account.id);
@@ -17,7 +24,10 @@ export default function AccountCard({ account, onClick }) {
 
   const firm  = firms[account.firm];
   const rules = getRulesFromFirms(firms, account.firm, account.size, account.plan);
-  const effectiveRules = applyConsistencyOverride(rules, account.consistencyOverride);
+  const effectiveRules = applyMaxDrawdownOverride(
+    applyConsistencyOverride(rules, account.consistencyOverride),
+    account.maxDrawdownOverride
+  );
   const m = computeMetrics(trades);
   const alerts = getAlerts(m, effectiveRules);
 
