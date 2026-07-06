@@ -17,6 +17,21 @@ function applyMaxDrawdownOverride(rules, override) {
   return { ...rules, maxDrawdown: n };
 }
 
+function applyProfitTargetOverride(rules, override) {
+  if (!rules || override == null) return rules;
+  const n = Number(override);
+  if (isNaN(n) || n <= 0) return rules;
+  return { ...rules, profitTarget: n };
+}
+
+function applyDLLOverride(rules, override) {
+  if (!rules || override == null) return rules;
+  if (override === 0) return { ...rules, hasDLL: false };
+  const n = Number(override);
+  if (isNaN(n) || n <= 0) return rules;
+  return { ...rules, hasDLL: true, dailyLossLimit: n };
+}
+
 export default function AccountCard({ account, onClick }) {
   const { firms } = useFirms();
   const { trades, loading } = useTrades(account.id);
@@ -24,9 +39,15 @@ export default function AccountCard({ account, onClick }) {
 
   const firm  = firms[account.firm];
   const rules = getRulesFromFirms(firms, account.firm, account.size, account.plan);
-  const effectiveRules = applyMaxDrawdownOverride(
-    applyConsistencyOverride(rules, account.consistencyOverride),
-    account.maxDrawdownOverride
+  const effectiveRules = applyDLLOverride(
+    applyProfitTargetOverride(
+      applyMaxDrawdownOverride(
+        applyConsistencyOverride(rules, account.consistencyOverride),
+        account.maxDrawdownOverride
+      ),
+      account.profitTargetOverride
+    ),
+    account.dllOverride
   );
   const m = computeMetrics(trades);
   const alerts = getAlerts(m, effectiveRules);

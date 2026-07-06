@@ -45,13 +45,16 @@ export default function AccountDetail({ accounts, onDeleteAccount, onUpdateAccou
   const { firms } = useFirms();
   const firm  = firms[account.firm];
   const rules = getRulesFromFirms(firms, account.firm, account.size, account.plan);
-  // Apply per-account overrides: consistency (null=default, 0=off, >0=custom), then profit target, then max drawdown
-  const effectiveRules = applyMaxDrawdownOverride(
-    applyProfitTargetOverride(
-      applyConsistencyOverride(rules, account.consistencyOverride),
-      account.profitTargetOverride
+  // Apply per-account overrides: consistency (null=default, 0=off, >0=custom), then profit target, max drawdown, then DLL
+  const effectiveRules = applyDLLOverride(
+    applyMaxDrawdownOverride(
+      applyProfitTargetOverride(
+        applyConsistencyOverride(rules, account.consistencyOverride),
+        account.profitTargetOverride
+      ),
+      account.maxDrawdownOverride
     ),
-    account.maxDrawdownOverride
+    account.dllOverride
   );
   const m     = computeMetrics(trades, payouts);
   const alerts = getAlerts(m, effectiveRules);
@@ -550,6 +553,14 @@ function applyMaxDrawdownOverride(rules, override) {
   const n = Number(override);
   if (isNaN(n) || n <= 0) return rules;
   return { ...rules, maxDrawdown: n };
+}
+
+function applyDLLOverride(rules, override) {
+  if (!rules || override == null) return rules;
+  if (override === 0) return { ...rules, hasDLL: false };
+  const n = Number(override);
+  if (isNaN(n) || n <= 0) return rules;
+  return { ...rules, hasDLL: true, dailyLossLimit: n };
 }
 
 function fmtPnl(n) {

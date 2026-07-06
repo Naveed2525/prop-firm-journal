@@ -48,6 +48,17 @@ export default function EditAccountModal({ account, onSave, onClose }) {
     const def = getRules(account.firm, account.size, account.plan);
     return def?.maxDrawdown ? String(def.maxDrawdown) : '';
   });
+  const [dllEnabled, setDllEnabled] = useState(() => {
+    if (account.dllOverride === 0) return false;
+    if (account.dllOverride != null && account.dllOverride > 0) return true;
+    const def = getRules(account.firm, account.size, account.plan);
+    return def?.hasDLL ?? true;
+  });
+  const [dllOverride, setDllOverride] = useState(() => {
+    if (account.dllOverride != null && account.dllOverride > 0) return String(account.dllOverride);
+    const def = getRules(account.firm, account.size, account.plan);
+    return def?.dailyLossLimit ? String(def.dailyLossLimit) : '';
+  });
   const { firms } = useFirms();
   const firmPayoutDefs = FIRM_PAYOUT_DEFAULTS[account.firm] ?? { minWinningDays: 5, minProfitPerDay: 0, maxPayoutPct: 50, maxPayoutCap: 0 };
   const existingPR = account.payoutRules ?? {};
@@ -65,6 +76,7 @@ export default function EditAccountModal({ account, onSave, onClose }) {
   const currentDefaultRules = getRulesFromFirms(firms, account.firm, account.size, plan);
   const defaultProfitTarget = currentDefaultRules?.profitTarget ?? null;
   const defaultMaxDrawdown = currentDefaultRules?.maxDrawdown ?? null;
+  const defaultDLL = currentDefaultRules?.dailyLossLimit ?? null;
 
   const handleSave = async () => {
     setSaving(true);
@@ -79,10 +91,18 @@ export default function EditAccountModal({ account, onSave, onClose }) {
       }
 
       const ptNum = parseFloat(profitTargetOverride);
-      const profitTargetOverrideVal = phase === 'funded' && !isNaN(ptNum) && ptNum > 0 ? ptNum : null;
+      const profitTargetOverrideVal = !isNaN(ptNum) && ptNum > 0 ? ptNum : null;
 
       const mddNum = parseFloat(maxDrawdownOverride);
       const maxDrawdownOverrideVal = !isNaN(mddNum) && mddNum > 0 ? mddNum : null;
+
+      let dllOverrideVal = null;
+      if (!dllEnabled) {
+        dllOverrideVal = 0;
+      } else {
+        const dllNum = parseFloat(dllOverride);
+        dllOverrideVal = !isNaN(dllNum) && dllNum > 0 ? dllNum : null;
+      }
 
       const payoutRules = phase === 'funded' ? {
         minWinningDays: parseInt(minWinningDays) || 5,
@@ -108,6 +128,7 @@ export default function EditAccountModal({ account, onSave, onClose }) {
         passedAt: phase === 'evaluation' && passed && account.status !== 'passed' ? now : undefined,
         profitTargetOverride: profitTargetOverrideVal,
         maxDrawdownOverride: maxDrawdownOverrideVal,
+        dllOverride: dllOverrideVal,
         payoutRules,
         purchaseDateTime,
         costs: serializeCosts(costs),
@@ -218,25 +239,57 @@ export default function EditAccountModal({ account, onSave, onClose }) {
           )}
         </div>
 
-        {/* Profit Target override — funded only */}
-        {phase === 'funded' && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 14 }}>
-            <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text2, #6b7280)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Profit Target ($)</label>
-            <input
-              type="number"
-              value={profitTargetOverride}
-              onChange={e => setProfitTargetOverride(e.target.value)}
-              placeholder={defaultProfitTarget ? String(defaultProfitTarget) : 'e.g. 3000'}
-              min="1"
-              style={{ fontSize: 14, padding: "9px 12px", borderRadius: 8, border: "1px solid var(--border, #e5e7eb)", background: "var(--surface2, #f9fafb)", color: "var(--text, #111)", fontFamily: "inherit", width: "100%", outline: "none" }}
-            />
-            {defaultProfitTarget && (
-              <p style={{ fontSize: 11, color: "var(--text3, #9ca3af)", margin: "2px 0 0" }}>
-                Firm default: ${defaultProfitTarget.toLocaleString()}
-              </p>
-            )}
+        {/* Profit Target override — eval and funded */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 14 }}>
+          <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text2, #6b7280)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Profit Target ($)</label>
+          <input
+            type="number"
+            value={profitTargetOverride}
+            onChange={e => setProfitTargetOverride(e.target.value)}
+            placeholder={defaultProfitTarget ? String(defaultProfitTarget) : 'e.g. 3000'}
+            min="1"
+            style={{ fontSize: 14, padding: "9px 12px", borderRadius: 8, border: "1px solid var(--border, #e5e7eb)", background: "var(--surface2, #f9fafb)", color: "var(--text, #111)", fontFamily: "inherit", width: "100%", outline: "none" }}
+          />
+          {defaultProfitTarget && (
+            <p style={{ fontSize: 11, color: "var(--text3, #9ca3af)", margin: "2px 0 0" }}>
+              Firm default: ${defaultProfitTarget.toLocaleString()}
+            </p>
+          )}
+        </div>
+
+        {/* Daily Loss Limit override — eval and funded */}
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+            <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text2, #6b7280)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Daily Loss Limit</label>
+            <div
+              onClick={() => setDllEnabled(v => !v)}
+              style={{ width: 40, height: 22, borderRadius: 11, background: dllEnabled ? "#2563eb" : "#d1d5db", position: "relative", flexShrink: 0, cursor: "pointer", transition: "background 0.2s" }}
+            >
+              <div style={{ position: "absolute", top: 2, left: dllEnabled ? 20 : 2, width: 18, height: 18, borderRadius: "50%", background: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,0.2)", transition: "left 0.2s" }} />
+            </div>
           </div>
-        )}
+          {dllEnabled ? (
+            <>
+              <input
+                type="number"
+                value={dllOverride}
+                onChange={e => setDllOverride(e.target.value)}
+                placeholder={defaultDLL ? String(defaultDLL) : 'e.g. 1000'}
+                min="1"
+                style={{ fontSize: 14, padding: "9px 12px", borderRadius: 8, border: "1px solid var(--border, #e5e7eb)", background: "var(--surface2, #f9fafb)", color: "var(--text, #111)", fontFamily: "inherit", width: "100%", outline: "none" }}
+              />
+              {defaultDLL && (
+                <p style={{ fontSize: 11, color: "var(--text3, #9ca3af)", margin: "2px 0 0" }}>
+                  Firm default: ${defaultDLL.toLocaleString()}
+                </p>
+              )}
+            </>
+          ) : (
+            <div style={{ fontSize: 12, color: "var(--text3, #9ca3af)", background: "var(--surface2, #f9fafb)", borderRadius: 8, padding: "8px 12px" }}>
+              No daily loss limit — the DLL gauge will be hidden for this account.
+            </div>
+          )}
+        </div>
 
         {/* Payout Rules — funded only */}
         {phase === 'funded' && (
