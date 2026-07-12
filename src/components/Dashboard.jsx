@@ -5,6 +5,8 @@ import AddAccountModal from './AddAccountModal';
 import ManageFirms from './ManageFirms';
 import ExpensesDashboard from './ExpensesDashboard';
 import { exportAllToCsv } from '../utils/exportCsv';
+import { useAccountsPnL } from '../hooks/useData';
+import { useFirms } from '../context/FirmsContext';
 
 export default function Dashboard({ accounts, loading, onAddAccount, isDark, onToggleTheme }) {
   const [showAdd, setShowAdd] = useState(false);
@@ -12,7 +14,12 @@ export default function Dashboard({ accounts, loading, onAddAccount, isDark, onT
   const [exporting, setExporting] = useState(false);
   const [showBlown, setShowBlown] = useState(false);
   const [showPassed, setShowPassed] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [firmFilter, setFirmFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('newest');
   const navigate = useNavigate();
+  const { firms } = useFirms();
+  const pnlMap = useAccountsPnL(accounts.map((a) => a.id));
 
   const handleExport = async () => {
     setExporting(true);
@@ -26,6 +33,27 @@ export default function Dashboard({ accounts, loading, onAddAccount, isDark, onT
   const fundedAccounts     = activeAccounts.filter((a) => a.phase === 'funded');
   const blownEval          = blownAccounts.filter((a) => a.phase !== 'funded');
   const blownFunded        = blownAccounts.filter((a) => a.phase === 'funded');
+
+  const isFiltering = searchQuery.trim() !== '' || firmFilter !== 'all';
+
+  const applyFilters = (list) =>
+    sortAccounts(
+      list.filter((acc) => (firmFilter === 'all' || acc.firm === firmFilter) && matchesSearch(acc, firms[acc.firm], searchQuery)),
+      sortBy,
+      pnlMap
+    );
+
+  const filteredEval        = applyFilters(evalAccounts);
+  const filteredPassed      = applyFilters(passedEvalAccounts);
+  const filteredFunded      = applyFilters(fundedAccounts);
+  const filteredBlownEval   = applyFilters(blownEval);
+  const filteredBlownFunded = applyFilters(blownFunded);
+  const totalMatched = filteredEval.length + filteredPassed.length + filteredFunded.length
+    + filteredBlownEval.length + filteredBlownFunded.length;
+
+  const firmOptions = Array.from(new Set(accounts.map((a) => a.firm)))
+    .map((key) => ({ key, name: firms[key]?.name ?? key }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   const headerSummary = (() => {
     if (accounts.length === 0) return 'No accounts';
@@ -107,6 +135,65 @@ export default function Dashboard({ accounts, loading, onAddAccount, isDark, onT
             </button>
           </div>
         </div>
+
+        {/* Search + filter + sort */}
+        {!loading && accounts.length > 0 && (
+          <div className="pb-3 space-y-2">
+            <div className="relative">
+              <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M18 10.5a7.5 7.5 0 11-15 0 7.5 7.5 0 0115 0z" />
+              </svg>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search by firm, label, or size…"
+                className="input pl-9 pr-9"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  title="Clear search"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <select
+                value={firmFilter}
+                onChange={(e) => setFirmFilter(e.target.value)}
+                className="input text-sm"
+              >
+                <option value="all">All Firms</option>
+                {firmOptions.map((f) => (
+                  <option key={f.key} value={f.key}>{f.name}</option>
+                ))}
+              </select>
+
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="input text-sm"
+              >
+                <option value="newest">Newest first</option>
+                <option value="oldest">Oldest first</option>
+                <option value="pnl-high">Highest P&amp;L</option>
+                <option value="pnl-low">Lowest P&amp;L</option>
+              </select>
+            </div>
+
+            {isFiltering && (
+              <p className="text-xs text-gray-400 dark:text-gray-500 px-0.5">
+                {totalMatched} {totalMatched === 1 ? 'account' : 'accounts'} found
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Account list */}
@@ -132,30 +219,41 @@ export default function Dashboard({ accounts, loading, onAddAccount, isDark, onT
               Add First Account
             </button>
           </div>
+        ) : isFiltering && totalMatched === 0 ? (
+          <NoResults />
         ) : (
           <>
             {/* Evaluation Accounts */}
-            <SectionLabel title="Evaluation Accounts" count={evalAccounts.length} />
-            {evalAccounts.length === 0 ? (
-              <EmptySection msg="No evaluation accounts" />
+            <SectionLabel title="Evaluation Accounts" count={filteredEval.length} />
+            {filteredEval.length === 0 ? (
+              <EmptySection msg={isFiltering ? 'No matching evaluation accounts' : 'No evaluation accounts'} />
             ) : (
-              evalAccounts.map((acc) => (
+              filteredEval.map((acc) => (
                 <AccountCard key={acc.id} account={acc} onClick={() => navigate(`/account/${acc.id}`)} />
               ))
             )}
 
             {/* Funded Accounts */}
-            <SectionLabel title="Funded Accounts" count={fundedAccounts.length} className="pt-3" />
-            {fundedAccounts.length === 0 ? (
-              <EmptySection msg="No funded accounts" />
+            <SectionLabel title="Funded Accounts" count={filteredFunded.length} className="pt-3" />
+            {filteredFunded.length === 0 ? (
+              <EmptySection msg={isFiltering ? 'No matching funded accounts' : 'No funded accounts'} />
             ) : (
-              fundedAccounts.map((acc) => (
+              filteredFunded.map((acc) => (
                 <AccountCard key={acc.id} account={acc} onClick={() => navigate(`/account/${acc.id}`)} />
               ))
             )}
 
-            {/* Passed Eval toggle */}
-            {passedEvalAccounts.length > 0 && (
+            {/* Passed Eval */}
+            {isFiltering ? (
+              filteredPassed.length > 0 && (
+                <div className="pt-4 space-y-3">
+                  <SectionLabel title="Passed Eval Accounts" count={filteredPassed.length} />
+                  {filteredPassed.map((acc) => (
+                    <AccountCard key={acc.id} account={acc} onClick={() => navigate(`/account/${acc.id}`)} />
+                  ))}
+                </div>
+              )
+            ) : passedEvalAccounts.length > 0 && (
               <div className="pt-4">
                 <button
                   onClick={() => setShowPassed((v) => !v)}
@@ -183,8 +281,29 @@ export default function Dashboard({ accounts, loading, onAddAccount, isDark, onT
               <ExpensesDashboard accounts={accounts} />
             </div>
 
-            {/* Blown Accounts toggle */}
-            {blownAccounts.length > 0 && (
+            {/* Blown Accounts */}
+            {isFiltering ? (
+              (filteredBlownEval.length > 0 || filteredBlownFunded.length > 0) && (
+                <div className="pt-4 space-y-3">
+                  {filteredBlownEval.length > 0 && (
+                    <>
+                      <SectionLabel title="Blown Eval" count={filteredBlownEval.length} />
+                      {filteredBlownEval.map((acc) => (
+                        <AccountCard key={acc.id} account={acc} onClick={() => navigate(`/account/${acc.id}`)} />
+                      ))}
+                    </>
+                  )}
+                  {filteredBlownFunded.length > 0 && (
+                    <>
+                      <SectionLabel title="Blown Funded" count={filteredBlownFunded.length} className="pt-1" />
+                      {filteredBlownFunded.map((acc) => (
+                        <AccountCard key={acc.id} account={acc} onClick={() => navigate(`/account/${acc.id}`)} />
+                      ))}
+                    </>
+                  )}
+                </div>
+              )
+            ) : blownAccounts.length > 0 && (
               <div className="pt-4">
                 <button
                   onClick={() => setShowBlown((v) => !v)}
@@ -256,4 +375,42 @@ function EmptySection({ msg }) {
       <p className="text-sm text-gray-400 dark:text-gray-500">{msg}</p>
     </div>
   );
+}
+
+function NoResults() {
+  return (
+    <div className="text-center py-16">
+      <div className="text-5xl mb-3">🔍</div>
+      <p className="text-base font-semibold text-gray-700 dark:text-gray-300">No accounts found</p>
+      <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">Try a different search term or filter</p>
+    </div>
+  );
+}
+
+function matchesSearch(account, firm, query) {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  const firmName = (firm?.name ?? '').toLowerCase();
+  const label = (account.label ?? '').toLowerCase();
+  const sizeRaw = String(account.size ?? '');
+  const sizeK = `${(Number(account.size) || 0) / 1000}k`;
+  return firmName.includes(q) || label.includes(q) || sizeRaw.includes(q) || sizeK.includes(q);
+}
+
+function sortAccounts(list, sortBy, pnlMap) {
+  const sorted = [...list];
+  sorted.sort((a, b) => {
+    switch (sortBy) {
+      case 'oldest':
+        return new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
+      case 'pnl-high':
+        return (pnlMap[b.id] ?? 0) - (pnlMap[a.id] ?? 0);
+      case 'pnl-low':
+        return (pnlMap[a.id] ?? 0) - (pnlMap[b.id] ?? 0);
+      case 'newest':
+      default:
+        return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+    }
+  });
+  return sorted;
 }

@@ -52,6 +52,27 @@ export function useAccounts() {
   return { accounts, loading, error, addAccount, updateAccount, deleteAccount };
 }
 
+export function useAccountsPnL(accountIds) {
+  const idsKey = accountIds.join(',');
+  const [pnlMap, setPnlMap] = useState({});
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!idsKey) { setPnlMap({}); return; }
+    const ids = idsKey.split(',');
+    Promise.all(
+      ids.map((id) =>
+        apiFetch(`/api/trades?accountId=${id}`)
+          .then((trades) => [id, trades.reduce((s, t) => s + (Number(t.pnl) || 0), 0)])
+          .catch(() => [id, 0])
+      )
+    ).then((entries) => { if (!cancelled) setPnlMap(Object.fromEntries(entries)); });
+    return () => { cancelled = true; };
+  }, [idsKey]);
+
+  return pnlMap;
+}
+
 export function useTrades(accountId) {
   const [trades, setTrades] = useState([]);
   const [loading, setLoading] = useState(true);
