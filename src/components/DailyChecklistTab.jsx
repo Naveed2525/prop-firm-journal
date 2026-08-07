@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import ProgressBar from './ProgressBar';
 import LogTradeModal from './LogTradeModal';
+import { CoreSizingRule } from './MyPlanTab';
 import { todayKey, defaultDay, computeWeeklySummary } from '../utils/tradingPlanUtils';
 
 const BEFORE_ITEMS = [
@@ -42,16 +43,21 @@ export default function DailyChecklistTab({ doc, loading, updateSection, logTrad
 
   if (loading) {
     return (
-      <div className="space-y-3">
-        {[0, 1, 2].map((i) => (
-          <div key={i} className="bg-white dark:bg-gray-900 rounded-2xl p-4 border border-gray-100 dark:border-gray-800 animate-pulse h-24" />
-        ))}
+      <div className="space-y-4">
+        <CoreSizingRule compact />
+        <div className="space-y-3">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="bg-white dark:bg-gray-900 rounded-2xl p-4 border border-gray-100 dark:border-gray-800 animate-pulse h-24" />
+          ))}
+        </div>
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
+      <CoreSizingRule compact />
+
       {/* Progress */}
       <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 shadow-sm dark:shadow-none">
         <div className="flex items-center justify-between mb-1">
