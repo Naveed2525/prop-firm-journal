@@ -4,6 +4,7 @@ import { useTheme } from './hooks/useTheme';
 import { FirmsProvider } from './context/FirmsContext';
 import Dashboard from './components/Dashboard';
 import AccountDetail from './components/AccountDetail';
+import TradingPlan from './components/TradingPlan';
 
 export default function App() {
   const { accounts, loading, addAccount, updateAccount, deleteAccount } = useAccounts();
@@ -29,6 +30,7 @@ export default function App() {
           path="/account/:id"
           element={<AccountDetail accounts={accounts} onDeleteAccount={deleteAccount} onUpdateAccount={updateAccount} onAddAccount={addAccount} />}
         />
+        <Route path="/trading-plan" element={<TradingPlan />} />
       </Routes>
     </BrowserRouter>
     </FirmsProvider>
