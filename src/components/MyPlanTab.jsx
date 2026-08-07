@@ -41,6 +41,8 @@ export default function MyPlanTab({ progress }) {
 
   return (
     <div className="space-y-4">
+      <CoreSizingRule />
+
       <PlanSection title="Daily Affirmation" sub="Read out loud before market opens">
         <p className="text-sm leading-relaxed italic text-gray-700 dark:text-gray-200">
           "I trade with discipline, not emotion. I follow my rules on every single trade, win or lose.
@@ -122,6 +124,26 @@ export default function MyPlanTab({ progress }) {
           Log each trade check on the <span className="font-medium">Daily Checklist</span> tab to update this counter.
         </p>
       </PlanSection>
+    </div>
+  );
+}
+
+export function CoreSizingRule({ compact = false }) {
+  return (
+    <div className="relative overflow-hidden rounded-2xl p-5 shadow-md border-2 border-amber-500 dark:border-amber-500 bg-gradient-to-br from-amber-300 via-amber-400 to-amber-500 dark:from-amber-600 dark:via-amber-700 dark:to-amber-800">
+      <div className="flex items-center gap-2 mb-2.5">
+        <svg className="w-5 h-5 flex-shrink-0 text-amber-950 dark:text-amber-50" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v17.25m0 0c-1.472 0-2.882.265-4.185.75M12 20.25c1.472 0 2.882.265 4.185.75M18.75 4.97A48.416 48.416 0 0012 4.5c-2.291 0-4.545.16-6.75.47m13.5 0c1.01.143 2.01.317 3 .52m-3-.52l2.62 10.726c.122.499-.106 1.028-.589 1.202a5.988 5.988 0 01-2.031.352 5.988 5.988 0 01-2.031-.352c-.483-.174-.711-.703-.59-1.202L18.75 4.971zm-16.5.52c.99-.203 1.99-.377 3-.52m0 0l2.62 10.726c.122.499-.106 1.028-.589 1.202a5.989 5.989 0 01-2.031.352 5.989 5.989 0 01-2.031-.352c-.483-.174-.711-.703-.59-1.202L5.25 4.971z" />
+        </svg>
+        <h2 className="text-xs font-bold uppercase tracking-wider text-amber-950 dark:text-amber-50">
+          {compact ? 'Reminder — My Core Sizing Rule' : 'My Core Sizing Rule'}
+        </h2>
+      </div>
+      <p className="text-lg sm:text-xl font-extrabold leading-snug tracking-tight text-amber-950 dark:text-white">
+        I NEVER SIZE MY TRADE BASED ON HOW MUCH I WANT TO MAKE.
+        <br />
+        I SIZE MY TRADE BASED ON WHERE MY TRADE IDEA IS WRONG.
+      </p>
     </div>
   );
 }
