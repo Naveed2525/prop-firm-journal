@@ -7,6 +7,7 @@ import ExpensesDashboard from './ExpensesDashboard';
 import { exportAllToCsv } from '../utils/exportCsv';
 import { useAccountsPnL } from '../hooks/useData';
 import { useFirms } from '../context/FirmsContext';
+import { useSortPreference, SORT_FIELDS } from '../hooks/useSortPreference';
 
 export default function Dashboard({ accounts, loading, onAddAccount, isDark, onToggleTheme }) {
   const [showAdd, setShowAdd] = useState(false);
@@ -16,7 +17,7 @@ export default function Dashboard({ accounts, loading, onAddAccount, isDark, onT
   const [showPassed, setShowPassed] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [firmFilter, setFirmFilter] = useState('all');
-  const [sortBy, setSortBy] = useState('newest');
+  const { sortField, sortDirection, setSortField, toggleSortDirection } = useSortPreference();
   const navigate = useNavigate();
   const { firms } = useFirms();
   const pnlMap = useAccountsPnL(accounts.map((a) => a.id));
@@ -39,8 +40,10 @@ export default function Dashboard({ accounts, loading, onAddAccount, isDark, onT
   const applyFilters = (list) =>
     sortAccounts(
       list.filter((acc) => (firmFilter === 'all' || acc.firm === firmFilter) && matchesSearch(acc, firms[acc.firm], searchQuery)),
-      sortBy,
-      pnlMap
+      sortField,
+      sortDirection,
+      pnlMap,
+      firms
     );
 
   const filteredEval        = applyFilters(evalAccounts);
@@ -50,6 +53,12 @@ export default function Dashboard({ accounts, loading, onAddAccount, isDark, onT
   const filteredBlownFunded = applyFilters(blownFunded);
   const totalMatched = filteredEval.length + filteredPassed.length + filteredFunded.length
     + filteredBlownEval.length + filteredBlownFunded.length;
+
+  // Unfiltered but still sorted — used by the collapsed Passed/Blown sections
+  // so the chosen sort applies there too, not just while searching/filtering.
+  const sortedPassedEvalAccounts = sortAccounts(passedEvalAccounts, sortField, sortDirection, pnlMap, firms);
+  const sortedBlownEval          = sortAccounts(blownEval, sortField, sortDirection, pnlMap, firms);
+  const sortedBlownFunded        = sortAccounts(blownFunded, sortField, sortDirection, pnlMap, firms);
 
   const firmOptions = Array.from(new Set(accounts.map((a) => a.firm)))
     .map((key) => ({ key, name: firms[key]?.name ?? key }))
@@ -175,16 +184,36 @@ export default function Dashboard({ accounts, loading, onAddAccount, isDark, onT
                 ))}
               </select>
 
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="input text-sm"
-              >
-                <option value="newest">Newest first</option>
-                <option value="oldest">Oldest first</option>
-                <option value="pnl-high">Highest P&amp;L</option>
-                <option value="pnl-low">Lowest P&amp;L</option>
-              </select>
+              <div className="flex items-stretch gap-2">
+                <select
+                  value={sortField}
+                  onChange={(e) => setSortField(e.target.value)}
+                  className="input text-sm flex-1 min-w-0"
+                  aria-label="Sort by"
+                >
+                  {SORT_FIELDS.map((f) => (
+                    <option key={f.value} value={f.value}>{f.label}</option>
+                  ))}
+                </select>
+
+                <button
+                  type="button"
+                  onClick={toggleSortDirection}
+                  title={sortDirectionLabel(sortField, sortDirection)}
+                  aria-label={sortDirectionLabel(sortField, sortDirection)}
+                  className="shrink-0 w-11 flex items-center justify-center rounded-xl bg-gray-100 border border-gray-300 text-gray-500 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+                >
+                  {sortDirection === 'asc' ? (
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 19V5M5 12l7-7 7 7" />
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14M19 12l-7 7-7-7" />
+                    </svg>
+                  )}
+                </button>
+              </div>
             </div>
 
             {isFiltering && (
@@ -268,7 +297,7 @@ export default function Dashboard({ accounts, loading, onAddAccount, isDark, onT
                 {showPassed && (
                   <div className="mt-3 space-y-3 opacity-60">
                     <SectionLabel title="Passed Eval Accounts" count={passedEvalAccounts.length} className="pt-1" />
-                    {passedEvalAccounts.map((acc) => (
+                    {sortedPassedEvalAccounts.map((acc) => (
                       <AccountCard key={acc.id} account={acc} onClick={() => navigate(`/account/${acc.id}`)} />
                     ))}
                   </div>
@@ -323,7 +352,7 @@ export default function Dashboard({ accounts, loading, onAddAccount, isDark, onT
                     {blownEval.length > 0 && (
                       <>
                         <SectionLabel title="Blown Eval" count={blownEval.length} className="pt-1" />
-                        {blownEval.map((acc) => (
+                        {sortedBlownEval.map((acc) => (
                           <AccountCard key={acc.id} account={acc} onClick={() => navigate(`/account/${acc.id}`)} />
                         ))}
                       </>
@@ -331,7 +360,7 @@ export default function Dashboard({ accounts, loading, onAddAccount, isDark, onT
                     {blownFunded.length > 0 && (
                       <>
                         <SectionLabel title="Blown Funded" count={blownFunded.length} className="pt-1" />
-                        {blownFunded.map((acc) => (
+                        {sortedBlownFunded.map((acc) => (
                           <AccountCard key={acc.id} account={acc} onClick={() => navigate(`/account/${acc.id}`)} />
                         ))}
                       </>
@@ -397,20 +426,38 @@ function matchesSearch(account, firm, query) {
   return firmName.includes(q) || label.includes(q) || sizeRaw.includes(q) || sizeK.includes(q);
 }
 
-function sortAccounts(list, sortBy, pnlMap) {
+function compareAccounts(a, b, sortField, pnlMap, firms) {
+  switch (sortField) {
+    case 'pnl':
+      return (pnlMap[a.id] ?? 0) - (pnlMap[b.id] ?? 0);
+    case 'firm':
+      return (firms[a.firm]?.name ?? a.firm ?? '').localeCompare(firms[b.firm]?.name ?? b.firm ?? '');
+    case 'size':
+      return (Number(a.size) || 0) - (Number(b.size) || 0);
+    case 'date':
+    default:
+      return new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
+  }
+}
+
+function sortAccounts(list, sortField, sortDirection, pnlMap, firms) {
   const sorted = [...list];
-  sorted.sort((a, b) => {
-    switch (sortBy) {
-      case 'oldest':
-        return new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
-      case 'pnl-high':
-        return (pnlMap[b.id] ?? 0) - (pnlMap[a.id] ?? 0);
-      case 'pnl-low':
-        return (pnlMap[a.id] ?? 0) - (pnlMap[b.id] ?? 0);
-      case 'newest':
-      default:
-        return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
-    }
-  });
+  const dir = sortDirection === 'asc' ? 1 : -1;
+  sorted.sort((a, b) => dir * compareAccounts(a, b, sortField, pnlMap, firms));
   return sorted;
+}
+
+function sortDirectionLabel(sortField, sortDirection) {
+  const asc = sortDirection === 'asc';
+  switch (sortField) {
+    case 'pnl':
+      return asc ? 'Lowest P&L first' : 'Highest P&L first';
+    case 'firm':
+      return asc ? 'Firm A to Z' : 'Firm Z to A';
+    case 'size':
+      return asc ? 'Smallest account first' : 'Largest account first';
+    case 'date':
+    default:
+      return asc ? 'Oldest first' : 'Newest first';
+  }
 }
