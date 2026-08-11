@@ -2,7 +2,7 @@ import { useState } from 'react';
 import ProgressBar from './ProgressBar';
 import LogTradeModal from './LogTradeModal';
 import { PersonalRuleCard } from './PersonalRules';
-import { todayKey, defaultDay, computeWeeklySummary } from '../utils/tradingPlanUtils';
+import { todayKey, defaultDay, computeWeeklySummary, formatDisplayDate } from '../utils/tradingPlanUtils';
 
 const BEFORE_ITEMS = [
   { key: 'affirmation', label: 'Read daily affirmation out loud' },
@@ -16,9 +16,11 @@ const END_OF_DAY_ITEMS = [
   { key: 'maxTrades', label: 'Maximum 2 trades respected' },
 ];
 
+const CHECKLIST_ITEM_COUNT = BEFORE_ITEMS.length + END_OF_DAY_ITEMS.length;
+
 export default function DailyChecklistTab({ doc, loading, updateSection, logTrade }) {
   const [showLogTrade, setShowLogTrade] = useState(false);
-  const [savingKey, setSavingKey] = useState(null);
+  const [toggleError, setToggleError] = useState('');
 
   const date = todayKey();
   const day = doc.days?.[date] ?? defaultDay();
@@ -29,12 +31,19 @@ export default function DailyChecklistTab({ doc, loading, updateSection, logTrad
   const lastReset = progress.resetLog?.[0];
   const weekly = computeWeeklySummary(doc.days);
 
+  const completedItems =
+    BEFORE_ITEMS.filter((item) => !!day.before?.[item.key]).length +
+    END_OF_DAY_ITEMS.filter((item) => !!day.endOfDay?.[item.key]).length;
+  const checklistComplete = completedItems === CHECKLIST_ITEM_COUNT;
+
+  // Optimistic — updateSection already applies the change instantly and rolls
+  // back on failure, so this just surfaces an error if the save didn't stick.
   const toggle = async (section, key, current) => {
-    setSavingKey(`${section}.${key}`);
+    setToggleError('');
     try {
       await updateSection(date, section, { [key]: !current });
-    } finally {
-      setSavingKey(null);
+    } catch (e) {
+      setToggleError(e.message || "Couldn't save that — check your connection and try again.");
     }
   };
 
@@ -54,6 +63,45 @@ export default function DailyChecklistTab({ doc, loading, updateSection, logTrad
 
   return (
     <div className="space-y-4">
+      {/* Today's date + completion */}
+      <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 shadow-sm dark:shadow-none">
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <h2 className="text-base font-bold text-gray-900 dark:text-white">{formatDisplayDate(date)}</h2>
+            <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Resets automatically each day at midnight</p>
+          </div>
+          {checklistComplete && (
+            <span className="flex-shrink-0 flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400">
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+              </svg>
+              All done
+            </span>
+          )}
+        </div>
+
+        <div className="mt-3">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Today's checklist</span>
+            <span className="text-xs font-bold text-gray-900 dark:text-white">{completedItems} / {CHECKLIST_ITEM_COUNT} completed</span>
+          </div>
+          <ProgressBar
+            value={completedItems}
+            max={CHECKLIST_ITEM_COUNT}
+            baseColor={checklistComplete ? 'bg-green-500' : 'bg-blue-500'}
+            warnAt={999}
+            dangerAt={999}
+            height="h-2"
+          />
+        </div>
+      </div>
+
+      {toggleError && (
+        <div className="rounded-lg px-3 py-2 text-xs bg-red-50 text-red-700 dark:bg-red-950/60 dark:text-red-300">
+          {toggleError}
+        </div>
+      )}
+
       {rules.length > 0 && (
         <div className="space-y-3">
           {rules.map((rule) => (
@@ -103,7 +151,6 @@ export default function DailyChecklistTab({ doc, loading, updateSection, logTrad
           <ChecklistItem
             key={item.key}
             checked={!!day.before?.[item.key]}
-            disabled={savingKey === `before.${item.key}`}
             onChange={() => toggle('before', item.key, !!day.before?.[item.key])}
           >
             {item.label}
@@ -150,7 +197,6 @@ export default function DailyChecklistTab({ doc, loading, updateSection, logTrad
           <ChecklistItem
             key={item.key}
             checked={!!day.endOfDay?.[item.key]}
-            disabled={savingKey === `endOfDay.${item.key}`}
             onChange={() => toggle('endOfDay', item.key, !!day.endOfDay?.[item.key])}
           >
             {item.label}
@@ -174,13 +220,12 @@ function ChecklistCard({ title, children }) {
   );
 }
 
-function ChecklistItem({ checked, onChange, disabled, children }) {
+function ChecklistItem({ checked, onChange, children }) {
   return (
-    <label className={`flex items-center gap-3 py-3 select-none ${disabled ? 'opacity-50' : 'cursor-pointer'}`}>
+    <label className="flex items-center gap-3 py-3 cursor-pointer select-none">
       <input
         type="checkbox"
         checked={checked}
-        disabled={disabled}
         onChange={onChange}
         className="w-5 h-5 accent-blue-600 rounded flex-shrink-0"
       />

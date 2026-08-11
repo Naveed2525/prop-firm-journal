@@ -43,13 +43,11 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         runtimeCaching: [
           {
+            // Account/trade/checklist state is mutable and must always be read
+            // fresh — never let the service worker (installed on iPhone as a
+            // PWA) serve a stale cached response after a save.
             urlPattern: /^\/api\//,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'api-cache',
-              expiration: { maxEntries: 100, maxAgeSeconds: 300 },
-              networkTimeoutSeconds: 5,
-            },
+            handler: 'NetworkOnly',
           },
         ],
       },

@@ -1,7 +1,25 @@
 // Shared helpers for the Trading Plan feature (My Plan + Daily Checklist tabs).
 
+// Local calendar date (not UTC) — the checklist resets at the user's own
+// midnight, not UTC midnight, so this must match their wall-clock day.
 export function todayKey() {
-  return new Date().toISOString().slice(0, 10);
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+// 'YYYY-MM-DD' -> "Tuesday, June 10, 2026". Parses as local time (not UTC)
+// so the weekday never shifts by a day near midnight in negative-UTC zones.
+export function formatDisplayDate(dateKey) {
+  const [y, m, d] = dateKey.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
 }
 
 export function defaultDay() {
