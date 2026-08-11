@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
+import { defaultDay } from '../utils/tradingPlanUtils';
 
 async function apiFetch(url, opts = {}) {
   const res = await fetch(url, {
     headers: { 'Content-Type': 'application/json' },
+    cache: 'no-store',
     ...opts,
   });
   if (!res.ok) {
@@ -167,14 +169,28 @@ export function useTradingPlan() {
     return () => { cancelled = true; };
   }, []);
 
-  // Toggle a Before Trading / End of Day checklist item for the given date
+  // Toggle a Before Trading / End of Day checklist item for the given date.
+  // Applied optimistically so checkboxes respond instantly; rolled back if
+  // the save actually fails (instead of silently reverting with no feedback).
   const updateSection = async (date, section, patch) => {
-    const updatedDay = await apiFetch(`/api/trading-plan?date=${date}&section=${section}`, {
-      method: 'PATCH',
-      body: JSON.stringify(patch),
+    let previousDay;
+    setDoc((prev) => {
+      previousDay = prev.days?.[date] ?? defaultDay();
+      const optimisticDay = { ...previousDay, [section]: { ...previousDay[section], ...patch } };
+      return { ...prev, days: { ...prev.days, [date]: optimisticDay } };
     });
-    setDoc((prev) => ({ ...prev, days: { ...prev.days, [date]: updatedDay } }));
-    return updatedDay;
+
+    try {
+      const updatedDay = await apiFetch(`/api/trading-plan?date=${date}&section=${section}`, {
+        method: 'PATCH',
+        body: JSON.stringify(patch),
+      });
+      setDoc((prev) => ({ ...prev, days: { ...prev.days, [date]: updatedDay } }));
+      return updatedDay;
+    } catch (err) {
+      setDoc((prev) => ({ ...prev, days: { ...prev.days, [date]: previousDay } }));
+      throw err;
+    }
   };
 
   // Log a Before/After Every Trade rule check for the given date
