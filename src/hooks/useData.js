@@ -153,7 +153,7 @@ export function usePayouts(accountId) {
   return { payouts, loading, addPayout, updatePayout, deletePayout };
 }
 
-const EMPTY_TRADING_PLAN = { days: {}, progress: { consecutiveCleanTrades: 0, bestStreak: 0, resetLog: [] } };
+const EMPTY_TRADING_PLAN = { days: {}, progress: { consecutiveCleanTrades: 0, bestStreak: 0, resetLog: [] }, personalRules: [] };
 
 export function useTradingPlan() {
   const [doc, setDoc] = useState(EMPTY_TRADING_PLAN);
@@ -191,5 +191,37 @@ export function useTradingPlan() {
     return result;
   };
 
-  return { doc, loading, updateSection, logTrade };
+  // Add a new personal rule (e.g. via "Add Personal Rule")
+  const addRule = async (text) => {
+    const rule = await apiFetch('/api/trading-plan?resource=rule', {
+      method: 'POST',
+      body: JSON.stringify({ text }),
+    });
+    setDoc((prev) => ({ ...prev, personalRules: [...(prev.personalRules ?? []), rule] }));
+    return rule;
+  };
+
+  // Edit an existing personal rule's text
+  const updateRule = async (id, text) => {
+    const rule = await apiFetch(`/api/trading-plan?resource=rule&id=${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ text }),
+    });
+    setDoc((prev) => ({
+      ...prev,
+      personalRules: (prev.personalRules ?? []).map((r) => (r.id === id ? rule : r)),
+    }));
+    return rule;
+  };
+
+  // Delete a personal rule entirely
+  const deleteRule = async (id) => {
+    await apiFetch(`/api/trading-plan?resource=rule&id=${id}`, { method: 'DELETE' });
+    setDoc((prev) => ({
+      ...prev,
+      personalRules: (prev.personalRules ?? []).filter((r) => r.id !== id),
+    }));
+  };
+
+  return { doc, loading, updateSection, logTrade, addRule, updateRule, deleteRule };
 }

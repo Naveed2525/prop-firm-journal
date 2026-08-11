@@ -7,7 +7,7 @@ import DailyChecklistTab from './DailyChecklistTab';
 export default function TradingPlan() {
   const navigate = useNavigate();
   const [tab, setTab] = useState('plan'); // 'plan' | 'checklist'
-  const { doc, loading, updateSection, logTrade } = useTradingPlan();
+  const { doc, loading, updateSection, logTrade, addRule, updateRule, deleteRule } = useTradingPlan();
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white pb-safe">
@@ -34,7 +34,13 @@ export default function TradingPlan() {
 
       <div className="px-4 py-4 pb-safe">
         {tab === 'plan' ? (
-          <MyPlanTab progress={doc.progress} />
+          <MyPlanTab
+            progress={doc.progress}
+            rules={doc.personalRules}
+            onAddRule={addRule}
+            onUpdateRule={updateRule}
+            onDeleteRule={deleteRule}
+          />
         ) : (
           <DailyChecklistTab doc={doc} loading={loading} updateSection={updateSection} logTrade={logTrade} />
         )}
