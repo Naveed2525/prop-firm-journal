@@ -6,7 +6,7 @@ import { todayKey, defaultDay, computeWeeklySummary, formatDisplayDate } from '.
 
 const BEFORE_ITEMS = [
   { key: 'affirmation', label: 'Read daily affirmation out loud' },
-  { key: 'positionSize', label: 'Confirmed my position size for this week' },
+  { key: 'positionSize', label: 'Confirmed my position size for today' },
   { key: 'marketConditions', label: 'Market conditions reviewed' },
 ];
 
@@ -75,7 +75,7 @@ export default function DailyChecklistTab({ doc, loading, updateSection, logTrad
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
               </svg>
-              All done
+              All done for today!
             </span>
           )}
         </div>
@@ -99,6 +99,12 @@ export default function DailyChecklistTab({ doc, loading, updateSection, logTrad
       {toggleError && (
         <div className="rounded-lg px-3 py-2 text-xs bg-red-50 text-red-700 dark:bg-red-950/60 dark:text-red-300">
           {toggleError}
+        </div>
+      )}
+
+      {checklistComplete && (
+        <div className="rounded-lg px-3 py-2 text-xs font-medium bg-green-50 text-green-700 dark:bg-green-950/60 dark:text-green-300">
+          All done for today!
         </div>
       )}
 
