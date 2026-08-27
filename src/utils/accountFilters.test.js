@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { categorizeAccounts, matchesSearch, sortAccounts } from './accountFilters';
+import {
+  categorizeAccounts, matchesSearch, sortAccounts,
+  getAccountType, matchesAccountType, matchesFirmFilter, isValidAccountType,
+} from './accountFilters';
 
 const firms = {
   topstep: { name: 'Topstep' },
@@ -129,16 +132,75 @@ describe('sortAccounts — toggle correctly reverses order for every field', () 
   });
 });
 
-describe('search + firm filter compose correctly with sort', () => {
+describe('getAccountType / isValidAccountType', () => {
+  it.each([
+    [acc({ id: 1 }), 'eval'],
+    [acc({ id: 2, status: 'passed' }), 'passed'],
+    [acc({ id: 3, phase: 'funded' }), 'funded'],
+    [acc({ id: 4, blown: true }), 'blown-eval'],
+    [acc({ id: 5, phase: 'funded', blown: true }), 'blown-funded'],
+    // blown always wins, even over passed/funded
+    [acc({ id: 6, phase: 'funded', status: 'passed', blown: true }), 'blown-funded'],
+  ])('classifies %#', (account, expected) => {
+    expect(getAccountType(account)).toBe(expected);
+  });
+
+  it('rejects unknown type values', () => {
+    expect(isValidAccountType('eval')).toBe(true);
+    expect(isValidAccountType('archived')).toBe(false);
+    expect(isValidAccountType(undefined)).toBe(false);
+  });
+});
+
+describe('matchesAccountType — multi-select', () => {
+  const evalAcc = acc({ id: 'e' });
+  const fundedAcc = acc({ id: 'f', phase: 'funded' });
+  const blownAcc = acc({ id: 'b', blown: true });
+
+  it('empty selection ("All") matches everything', () => {
+    for (const a of [evalAcc, fundedAcc, blownAcc]) {
+      expect(matchesAccountType(a, [])).toBe(true);
+    }
+  });
+
+  it('single selection matches only that type', () => {
+    expect(matchesAccountType(evalAcc, ['eval'])).toBe(true);
+    expect(matchesAccountType(fundedAcc, ['eval'])).toBe(false);
+  });
+
+  it('multiple selections are OR\'d together', () => {
+    const selected = ['eval', 'blown-eval'];
+    expect(matchesAccountType(evalAcc, selected)).toBe(true);
+    expect(matchesAccountType(blownAcc, selected)).toBe(true);
+    expect(matchesAccountType(fundedAcc, selected)).toBe(false);
+  });
+});
+
+describe('matchesFirmFilter — multi-select', () => {
+  it('empty selection ("All firms") matches everything', () => {
+    expect(matchesFirmFilter(acc({ id: 1, firm: 'lucid' }), [])).toBe(true);
+  });
+
+  it('matches any firm in the selection', () => {
+    expect(matchesFirmFilter(acc({ id: 1, firm: 'lucid' }), ['topstep', 'lucid'])).toBe(true);
+    expect(matchesFirmFilter(acc({ id: 1, firm: 'mff' }), ['topstep', 'lucid'])).toBe(false);
+  });
+});
+
+describe('account type + firm filter + search compose correctly with sort', () => {
   const accounts = [
     acc({ id: 'a', firm: 'topstep', label: 'Main eval', size: 50000, createdAt: '2026-01-01T00:00:00.000Z' }),
     acc({ id: 'b', firm: 'topstep', label: 'Backup', size: 100000, createdAt: '2026-02-01T00:00:00.000Z' }),
-    acc({ id: 'c', firm: 'mff', label: 'Main funded', size: 50000, createdAt: '2026-03-01T00:00:00.000Z' }),
+    acc({ id: 'c', firm: 'mff', label: 'Main funded', phase: 'funded', size: 50000, createdAt: '2026-03-01T00:00:00.000Z' }),
+    acc({ id: 'd', firm: 'lucid', label: 'Blown one', blown: true, size: 50000, createdAt: '2026-04-01T00:00:00.000Z' }),
+    acc({ id: 'e', firm: 'mff', label: 'Passed one', status: 'passed', size: 100000, createdAt: '2026-05-01T00:00:00.000Z' }),
   ];
 
-  function applyFilters(list, { firmFilter = 'all', search = '', sortField = 'date', sortDirection = 'asc' } = {}) {
+  // Mirrors Dashboard.jsx's applyFilters exactly: type, then firm, then
+  // search, then sort — the real production composition, not a re-derivation.
+  function applyFilters(list, { types = [], firmFilter = [], search = '', sortField = 'date', sortDirection = 'asc' } = {}) {
     return sortAccounts(
-      list.filter((a) => (firmFilter === 'all' || a.firm === firmFilter) && matchesSearch(a, firms[a.firm], search)),
+      list.filter((a) => matchesAccountType(a, types) && matchesFirmFilter(a, firmFilter) && matchesSearch(a, firms[a.firm], search)),
       sortField,
       sortDirection,
       {},
@@ -146,38 +208,66 @@ describe('search + firm filter compose correctly with sort', () => {
     );
   }
 
-  it('firm filter narrows the set before sorting', () => {
-    const result = applyFilters(accounts, { firmFilter: 'topstep', sortField: 'date', sortDirection: 'desc' });
+  it('no filters (all defaults) returns everything, sorted', () => {
+    const result = applyFilters(accounts, { sortDirection: 'asc' });
+    expect(result.map((a) => a.id)).toEqual(['a', 'b', 'c', 'd', 'e']);
+  });
+
+  it('single firm filter narrows the set before sorting', () => {
+    const result = applyFilters(accounts, { firmFilter: ['topstep'], sortDirection: 'desc' });
     expect(result.map((a) => a.id)).toEqual(['b', 'a']);
   });
 
-  it('search by label narrows the set, independent of firm filter', () => {
+  it('multi-select firm filter is OR\'d (topstep OR lucid)', () => {
+    const result = applyFilters(accounts, { firmFilter: ['topstep', 'lucid'] });
+    expect(result.map((a) => a.id).sort()).toEqual(['a', 'b', 'd']);
+  });
+
+  it('single account-type filter narrows to just that bucket', () => {
+    expect(applyFilters(accounts, { types: ['funded'] }).map((a) => a.id)).toEqual(['c']);
+    expect(applyFilters(accounts, { types: ['blown-eval'] }).map((a) => a.id)).toEqual(['d']);
+    expect(applyFilters(accounts, { types: ['passed'] }).map((a) => a.id)).toEqual(['e']);
+  });
+
+  it('multi-select account-type filter is OR\'d (eval OR passed)', () => {
+    const result = applyFilters(accounts, { types: ['eval', 'passed'] });
+    expect(result.map((a) => a.id).sort()).toEqual(['a', 'b', 'e']);
+  });
+
+  it('account type + firm filter combine as AND', () => {
+    // mff accounts that are either funded or passed -> both c and e
+    const result = applyFilters(accounts, { types: ['funded', 'passed'], firmFilter: ['mff'] });
+    expect(result.map((a) => a.id).sort()).toEqual(['c', 'e']);
+  });
+
+  it('search by label narrows the set, independent of type/firm filter', () => {
     const result = applyFilters(accounts, { search: 'main' });
     expect(result.map((a) => a.id).sort()).toEqual(['a', 'c']);
   });
 
   it('search by size (raw and "Nk" shorthand) matches', () => {
-    expect(applyFilters(accounts, { search: '100000' }).map((a) => a.id)).toEqual(['b']);
-    expect(applyFilters(accounts, { search: '50k' }).map((a) => a.id).sort()).toEqual(['a', 'c']);
+    expect(applyFilters(accounts, { search: '100000' }).map((a) => a.id).sort()).toEqual(['b', 'e']);
+    expect(applyFilters(accounts, { search: '50k' }).map((a) => a.id).sort()).toEqual(['a', 'c', 'd']);
   });
 
   it('search by firm name matches', () => {
-    expect(applyFilters(accounts, { search: 'myfundedfutures' }).map((a) => a.id)).toEqual(['c']);
+    expect(applyFilters(accounts, { search: 'myfundedfutures' }).map((a) => a.id).sort()).toEqual(['c', 'e']);
   });
 
-  it('search + firm filter combine (AND, not OR)', () => {
-    const result = applyFilters(accounts, { firmFilter: 'topstep', search: 'main' });
+  it('type + firm + search all combine (AND, not OR)', () => {
+    const result = applyFilters(accounts, { types: ['eval'], firmFilter: ['topstep'], search: 'main' });
     expect(result.map((a) => a.id)).toEqual(['a']);
   });
 
   it('sort still applies to the filtered+searched subset, both directions', () => {
-    const asc = applyFilters(accounts, { firmFilter: 'topstep', sortField: 'size', sortDirection: 'asc' });
-    const desc = applyFilters(accounts, { firmFilter: 'topstep', sortField: 'size', sortDirection: 'desc' });
+    const asc = applyFilters(accounts, { firmFilter: ['topstep'], sortField: 'size', sortDirection: 'asc' });
+    const desc = applyFilters(accounts, { firmFilter: ['topstep'], sortField: 'size', sortDirection: 'desc' });
     expect(asc.map((a) => a.id)).toEqual(['a', 'b']);
     expect(desc.map((a) => a.id)).toEqual(['b', 'a']);
   });
 
   it('no matches returns an empty list, not an error', () => {
     expect(applyFilters(accounts, { search: 'zzz-no-such-account' })).toEqual([]);
+    expect(applyFilters(accounts, { types: ['funded'], firmFilter: ['lucid'] })).toEqual([]);
   });
 });

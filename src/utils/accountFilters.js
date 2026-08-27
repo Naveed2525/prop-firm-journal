@@ -19,19 +19,52 @@ export function isBlown(account) {
   return account?.blown === true;
 }
 
-// Split the full account list into the buckets the dashboard renders.
-// An account appears in exactly one of these six buckets.
-export function categorizeAccounts(accounts) {
-  const active = accounts.filter((a) => !isBlown(a));
-  const blown = accounts.filter((a) => isBlown(a));
+// The five mutually-exclusive account types the dashboard filters by.
+// Every account maps to exactly one of these.
+export const ACCOUNT_TYPES = [
+  { value: 'eval', label: 'Eval (active)' },
+  { value: 'funded', label: 'Funded (active)' },
+  { value: 'passed', label: 'Passed Eval' },
+  { value: 'blown-eval', label: 'Blown Eval' },
+  { value: 'blown-funded', label: 'Blown Funded' },
+];
+const ACCOUNT_TYPE_VALUES = ACCOUNT_TYPES.map((t) => t.value);
+const TYPE_TO_BUCKET = {
+  eval: 'evalAccounts',
+  passed: 'passedEvalAccounts',
+  funded: 'fundedAccounts',
+  'blown-eval': 'blownEval',
+  'blown-funded': 'blownFunded',
+};
 
-  return {
-    evalAccounts: active.filter((a) => !isFunded(a) && !isPassed(a)),
-    passedEvalAccounts: active.filter((a) => !isFunded(a) && isPassed(a)),
-    fundedAccounts: active.filter((a) => isFunded(a)),
-    blownEval: blown.filter((a) => !isFunded(a)),
-    blownFunded: blown.filter((a) => isFunded(a)),
-  };
+export function getAccountType(account) {
+  if (isBlown(account)) return isFunded(account) ? 'blown-funded' : 'blown-eval';
+  if (isFunded(account)) return 'funded';
+  return isPassed(account) ? 'passed' : 'eval';
+}
+
+export function isValidAccountType(value) {
+  return ACCOUNT_TYPE_VALUES.includes(value);
+}
+
+// Split the full account list into the buckets the dashboard renders.
+// An account appears in exactly one of these five buckets.
+export function categorizeAccounts(accounts) {
+  const buckets = { evalAccounts: [], passedEvalAccounts: [], fundedAccounts: [], blownEval: [], blownFunded: [] };
+  for (const account of accounts) {
+    buckets[TYPE_TO_BUCKET[getAccountType(account)]].push(account);
+  }
+  return buckets;
+}
+
+// Empty selection means "All" (no restriction) for both filters below —
+// that's the default state and what the "All" / "All firms" chip clears to.
+export function matchesAccountType(account, selectedTypes) {
+  return !selectedTypes || selectedTypes.length === 0 || selectedTypes.includes(getAccountType(account));
+}
+
+export function matchesFirmFilter(account, selectedFirms) {
+  return !selectedFirms || selectedFirms.length === 0 || selectedFirms.includes(account.firm);
 }
 
 export function matchesSearch(account, firm, query) {

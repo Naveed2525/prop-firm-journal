@@ -8,7 +8,8 @@ import { exportAllToCsv } from '../utils/exportCsv';
 import { useAccountsPnL } from '../hooks/useData';
 import { useFirms } from '../context/FirmsContext';
 import { useSortPreference, SORT_FIELDS } from '../hooks/useSortPreference';
-import { categorizeAccounts, matchesSearch, sortAccounts, sortDirectionLabel } from '../utils/accountFilters';
+import { useFilterPreference } from '../hooks/useFilterPreference';
+import { categorizeAccounts, matchesSearch, matchesAccountType, matchesFirmFilter, sortAccounts, sortDirectionLabel, ACCOUNT_TYPES } from '../utils/accountFilters';
 
 export default function Dashboard({ accounts, loading, onAddAccount, isDark, onToggleTheme }) {
   const [showAdd, setShowAdd] = useState(false);
@@ -17,8 +18,17 @@ export default function Dashboard({ accounts, loading, onAddAccount, isDark, onT
   const [showBlown, setShowBlown] = useState(false);
   const [showPassed, setShowPassed] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [firmFilter, setFirmFilter] = useState('all');
   const { sortField, sortDirection, setSortField, toggleSortDirection } = useSortPreference();
+  const {
+    accountTypeFilters, firmFilters,
+    toggleAccountType, toggleFirm,
+    clearAccountTypes, clearFirms, resetFilters,
+  } = useFilterPreference();
+  // Collapsed by default to save space (esp. on iPhone); auto-expanded on
+  // mount if filters were already selected in a previous session.
+  const [showFilterPanel, setShowFilterPanel] = useState(
+    () => accountTypeFilters.length > 0 || firmFilters.length > 0
+  );
   const navigate = useNavigate();
   const { firms } = useFirms();
   const pnlMap = useAccountsPnL(accounts.map((a) => a.id));
@@ -31,11 +41,16 @@ export default function Dashboard({ accounts, loading, onAddAccount, isDark, onT
   const { evalAccounts, passedEvalAccounts, fundedAccounts, blownEval, blownFunded } = categorizeAccounts(accounts);
   const blownAccounts = blownEval.concat(blownFunded);
 
-  const isFiltering = searchQuery.trim() !== '' || firmFilter !== 'all';
+  const activeFilterCount = accountTypeFilters.length + firmFilters.length;
+  const isFiltering = searchQuery.trim() !== '' || activeFilterCount > 0;
 
   const applyFilters = (list) =>
     sortAccounts(
-      list.filter((acc) => (firmFilter === 'all' || acc.firm === firmFilter) && matchesSearch(acc, firms[acc.firm], searchQuery)),
+      list.filter((acc) =>
+        matchesAccountType(acc, accountTypeFilters) &&
+        matchesFirmFilter(acc, firmFilters) &&
+        matchesSearch(acc, firms[acc.firm], searchQuery)
+      ),
       sortField,
       sortDirection,
       pnlMap,
@@ -56,8 +71,10 @@ export default function Dashboard({ accounts, loading, onAddAccount, isDark, onT
   const sortedBlownEval          = sortAccounts(blownEval, sortField, sortDirection, pnlMap, firms);
   const sortedBlownFunded        = sortAccounts(blownFunded, sortField, sortDirection, pnlMap, firms);
 
-  const firmOptions = Array.from(new Set(accounts.map((a) => a.firm)))
-    .map((key) => ({ key, name: firms[key]?.name ?? key }))
+  // Every configured firm (builtin + custom), not just ones with an account
+  // already open, so you can pre-filter for a firm before adding to it.
+  const firmOptions = Object.entries(firms)
+    .map(([key, f]) => ({ key, name: f?.name ?? key }))
     .sort((a, b) => a.name.localeCompare(b.name));
 
   const headerSummary = (() => {
@@ -179,54 +196,104 @@ export default function Dashboard({ accounts, loading, onAddAccount, isDark, onT
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
+            <div className="flex items-stretch gap-2">
               <select
-                value={firmFilter}
-                onChange={(e) => setFirmFilter(e.target.value)}
-                className="input text-sm"
+                value={sortField}
+                onChange={(e) => setSortField(e.target.value)}
+                className="input text-sm flex-1 min-w-0"
+                aria-label="Sort by"
               >
-                <option value="all">All Firms</option>
-                {firmOptions.map((f) => (
-                  <option key={f.key} value={f.key}>{f.name}</option>
+                {SORT_FIELDS.map((f) => (
+                  <option key={f.value} value={f.value}>{f.label}</option>
                 ))}
               </select>
 
-              <div className="flex items-stretch gap-2">
-                <select
-                  value={sortField}
-                  onChange={(e) => setSortField(e.target.value)}
-                  className="input text-sm flex-1 min-w-0"
-                  aria-label="Sort by"
-                >
-                  {SORT_FIELDS.map((f) => (
-                    <option key={f.value} value={f.value}>{f.label}</option>
-                  ))}
-                </select>
-
-                <button
-                  type="button"
-                  onClick={toggleSortDirection}
-                  title={sortDirectionLabel(sortField, sortDirection)}
-                  aria-label={sortDirectionLabel(sortField, sortDirection)}
-                  className="shrink-0 w-11 flex items-center justify-center rounded-xl bg-gray-100 border border-gray-300 text-gray-500 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
-                >
-                  {sortDirection === 'asc' ? (
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 19V5M5 12l7-7 7 7" />
-                    </svg>
-                  ) : (
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14M19 12l-7 7-7-7" />
-                    </svg>
-                  )}
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={toggleSortDirection}
+                title={sortDirectionLabel(sortField, sortDirection)}
+                aria-label={sortDirectionLabel(sortField, sortDirection)}
+                className="shrink-0 w-11 flex items-center justify-center rounded-xl bg-gray-100 border border-gray-300 text-gray-500 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+              >
+                {sortDirection === 'asc' ? (
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 19V5M5 12l7-7 7 7" />
+                  </svg>
+                ) : (
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14M19 12l-7 7-7-7" />
+                  </svg>
+                )}
+              </button>
             </div>
 
+            {/* Filters toggle — collapsible so it doesn't eat vertical space on a phone screen */}
+            <button
+              type="button"
+              onClick={() => setShowFilterPanel((v) => !v)}
+              aria-expanded={showFilterPanel}
+              className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+            >
+              <span className="flex items-center gap-2 text-sm font-medium">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 4.5h18M6 9.75h12M10 15h4" />
+                </svg>
+                Filters
+                {activeFilterCount > 0 && (
+                  <span className="min-w-[1.25rem] h-5 px-1 flex items-center justify-center rounded-full bg-blue-600 text-white text-[11px] font-bold">
+                    {activeFilterCount}
+                  </span>
+                )}
+              </span>
+              <svg
+                className={`w-4 h-4 transition-transform ${showFilterPanel ? 'rotate-180' : ''}`}
+                fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {showFilterPanel && (
+              <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 space-y-3">
+                <FilterChipGroup
+                  title="Account Type"
+                  allLabel="All"
+                  options={ACCOUNT_TYPES}
+                  selected={accountTypeFilters}
+                  onToggle={toggleAccountType}
+                  onClear={clearAccountTypes}
+                  chipClass={ACCOUNT_TYPE_CHIP_CLASS}
+                />
+                <FilterChipGroup
+                  title="Firm"
+                  allLabel="All firms"
+                  options={firmOptions.map((f) => ({ value: f.key, label: f.name }))}
+                  selected={firmFilters}
+                  onToggle={toggleFirm}
+                  onClear={clearFirms}
+                  colorFor={(opt) => firms[opt.value]?.color}
+                />
+              </div>
+            )}
+
             {isFiltering && (
-              <p className="text-xs text-gray-400 dark:text-gray-500 px-0.5">
-                {totalMatched} {totalMatched === 1 ? 'account' : 'accounts'} found
-              </p>
+              <div className="flex items-center justify-between gap-2 px-0.5">
+                <p className="text-xs text-gray-400 dark:text-gray-500">
+                  {totalMatched} {totalMatched === 1 ? 'account' : 'accounts'} found
+                </p>
+                {activeFilterCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={resetFilters}
+                    className="flex items-center gap-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline"
+                  >
+                    <span className="bg-blue-100 dark:bg-blue-950 rounded-full px-2 py-0.5">
+                      {activeFilterCount} active {activeFilterCount === 1 ? 'filter' : 'filters'}
+                    </span>
+                    Reset
+                  </button>
+                )}
+              </div>
             )}
           </div>
         )}
@@ -391,6 +458,63 @@ export default function Dashboard({ accounts, loading, onAddAccount, isDark, onT
         <ManageFirms onClose={() => setShowManageFirms(false)} />
       )}
     </div>
+  );
+}
+
+// Tailwind classes for each account-type chip's active state, echoing the
+// accent colors already used for these states elsewhere (AccountDetail's
+// status badge, the Passed/Blown section toggles).
+const ACCOUNT_TYPE_CHIP_CLASS = {
+  eval: 'bg-blue-600 border-blue-600',
+  funded: 'bg-green-600 border-green-600',
+  passed: 'bg-emerald-600 border-emerald-600',
+  'blown-eval': 'bg-red-600 border-red-600',
+  'blown-funded': 'bg-red-700 border-red-700',
+};
+
+function FilterChipGroup({ title, allLabel, options, selected, onToggle, onClear, chipClass, colorFor }) {
+  return (
+    <div>
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-1.5">
+        {title}
+      </p>
+      <div className="flex flex-wrap gap-1.5">
+        <FilterChip active={selected.length === 0} onClick={onClear} activeClassName="bg-gray-700 border-gray-700 dark:bg-gray-600 dark:border-gray-600">
+          {allLabel}
+        </FilterChip>
+        {options.map((opt) => (
+          <FilterChip
+            key={opt.value}
+            active={selected.includes(opt.value)}
+            onClick={() => onToggle(opt.value)}
+            activeClassName={chipClass?.[opt.value]}
+            activeColor={colorFor?.(opt)}
+          >
+            {opt.label}
+          </FilterChip>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// A toggle-able pill. `activeColor` (a firm's own hex color) takes priority
+// over `activeClassName` (a static Tailwind color) when both are given —
+// used for firm chips, which don't have a fixed palette to pick classes from.
+function FilterChip({ active, onClick, children, activeClassName = 'bg-blue-600 border-blue-600', activeColor }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={active && activeColor ? { backgroundColor: activeColor, borderColor: activeColor } : undefined}
+      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+        active
+          ? `text-white border-transparent ${activeColor ? '' : activeClassName}`
+          : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+      }`}
+    >
+      {children}
+    </button>
   );
 }
 
