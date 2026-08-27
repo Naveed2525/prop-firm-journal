@@ -8,6 +8,7 @@ import { exportAllToCsv } from '../utils/exportCsv';
 import { useAccountsPnL } from '../hooks/useData';
 import { useFirms } from '../context/FirmsContext';
 import { useSortPreference, SORT_FIELDS } from '../hooks/useSortPreference';
+import { categorizeAccounts, matchesSearch, sortAccounts, sortDirectionLabel } from '../utils/accountFilters';
 
 export default function Dashboard({ accounts, loading, onAddAccount, isDark, onToggleTheme }) {
   const [showAdd, setShowAdd] = useState(false);
@@ -27,13 +28,8 @@ export default function Dashboard({ accounts, loading, onAddAccount, isDark, onT
     try { await exportAllToCsv(accounts); } finally { setExporting(false); }
   };
 
-  const blownAccounts      = accounts.filter((a) => a.blown === true);
-  const activeAccounts     = accounts.filter((a) => !a.blown);
-  const evalAccounts       = activeAccounts.filter((a) => a.phase !== 'funded' && a.status !== 'passed');
-  const passedEvalAccounts = activeAccounts.filter((a) => a.phase !== 'funded' && a.status === 'passed');
-  const fundedAccounts     = activeAccounts.filter((a) => a.phase === 'funded');
-  const blownEval          = blownAccounts.filter((a) => a.phase !== 'funded');
-  const blownFunded        = blownAccounts.filter((a) => a.phase === 'funded');
+  const { evalAccounts, passedEvalAccounts, fundedAccounts, blownEval, blownFunded } = categorizeAccounts(accounts);
+  const blownAccounts = blownEval.concat(blownFunded);
 
   const isFiltering = searchQuery.trim() !== '' || firmFilter !== 'all';
 
@@ -427,48 +423,3 @@ function NoResults() {
   );
 }
 
-function matchesSearch(account, firm, query) {
-  const q = query.trim().toLowerCase();
-  if (!q) return true;
-  const firmName = (firm?.name ?? '').toLowerCase();
-  const label = (account.label ?? '').toLowerCase();
-  const sizeRaw = String(account.size ?? '');
-  const sizeK = `${(Number(account.size) || 0) / 1000}k`;
-  return firmName.includes(q) || label.includes(q) || sizeRaw.includes(q) || sizeK.includes(q);
-}
-
-function compareAccounts(a, b, sortField, pnlMap, firms) {
-  switch (sortField) {
-    case 'pnl':
-      return (pnlMap[a.id] ?? 0) - (pnlMap[b.id] ?? 0);
-    case 'firm':
-      return (firms[a.firm]?.name ?? a.firm ?? '').localeCompare(firms[b.firm]?.name ?? b.firm ?? '');
-    case 'size':
-      return (Number(a.size) || 0) - (Number(b.size) || 0);
-    case 'date':
-    default:
-      return new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
-  }
-}
-
-function sortAccounts(list, sortField, sortDirection, pnlMap, firms) {
-  const sorted = [...list];
-  const dir = sortDirection === 'asc' ? 1 : -1;
-  sorted.sort((a, b) => dir * compareAccounts(a, b, sortField, pnlMap, firms));
-  return sorted;
-}
-
-function sortDirectionLabel(sortField, sortDirection) {
-  const asc = sortDirection === 'asc';
-  switch (sortField) {
-    case 'pnl':
-      return asc ? 'Lowest P&L first' : 'Highest P&L first';
-    case 'firm':
-      return asc ? 'Firm A to Z' : 'Firm Z to A';
-    case 'size':
-      return asc ? 'Smallest account first' : 'Largest account first';
-    case 'date':
-    default:
-      return asc ? 'Oldest first' : 'Newest first';
-  }
-}
